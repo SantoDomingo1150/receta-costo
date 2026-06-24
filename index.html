@@ -759,14 +759,15 @@
                     <div class="list-item-content">
                         <div class="list-item-title">${p.nombre}</div>
                         <div class="form-group" style="margin: 0.5rem 0;">
-                            <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 1rem;">
+                            <div style="display: grid; grid-template-columns: 2fr 1fr 120px; gap: 1rem; align-items: flex-end;">
                                 <div>
                                     <label>Nuevo precio</label>
-                                    <input type="number" id="price_${p.id}" value="${p.precio}" step="0.01" onchange="updateProductPrice(${p.id})">
+                                    <input type="number" id="price_${p.id}" value="${p.precio}" step="0.01" placeholder="Ingresa nuevo precio">
                                 </div>
-                                <div style="display: flex; align-items: flex-end;">
+                                <div>
                                     <span style="color: var(--text-secondary);">/ ${p.unidad}</span>
                                 </div>
+                                <button class="btn-primary" onclick="updateProductPrice(${p.id})" style="padding: 0.75rem 1.5rem; width: 100%;">💾 Guardar</button>
                             </div>
                         </div>
                     </div>
@@ -780,8 +781,19 @@
             if (producto && newPrice) {
                 producto.precio = parseFloat(newPrice);
                 await saveToFirebase('inventario', producto);
-                alert('✅ Precio actualizado correctamente');
+                
+                // Actualizar ambas vistas inmediatamente
+                renderInventario();
+                renderEditarInventario();
                 renderRecetasList(document.getElementById('searchRecetas')?.value || '');
+                
+                // Mostrar feedback visual
+                const button = event.target;
+                const originalText = button.textContent;
+                button.textContent = '✅ ¡Guardado!';
+                setTimeout(() => {
+                    button.textContent = originalText;
+                }, 2000);
             }
         }
 
