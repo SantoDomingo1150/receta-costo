@@ -568,6 +568,12 @@
                         <input type="number" class="recIngCantidad" placeholder="Cantidad" step="0.01" onchange="updateRecCost()">
                         <select class="recIngUnidad" onchange="updateRecCost()">
                             <option value="">Unidad</option>
+                            <option value="kg">kg</option>
+                            <option value="g">g</option>
+                            <option value="L">L</option>
+                            <option value="ml">ml</option>
+                            <option value="cc">cc</option>
+                            <option value="u">u</option>
                         </select>
                         <span style="text-align: right;"></span>
                         <button class="btn-danger" onclick="this.parentElement.remove(); updateRecCost();">✕</button>
@@ -756,7 +762,7 @@
                             <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 1rem;">
                                 <div>
                                     <label>Nuevo precio</label>
-                                    <input type="number" value="${p.precio}" step="0.01" onchange="updateProductPrice(${p.id}, this.value)">
+                                    <input type="number" id="price_${p.id}" value="${p.precio}" step="0.01" onchange="updateProductPrice(${p.id})">
                                 </div>
                                 <div style="display: flex; align-items: flex-end;">
                                     <span style="color: var(--text-secondary);">/ ${p.unidad}</span>
@@ -768,11 +774,13 @@
             `).join('');
         }
 
-        async function updateProductPrice(id, newPrice) {
+        async function updateProductPrice(id) {
+            const newPrice = document.getElementById('price_' + id).value;
             const producto = inventario.find(p => p.id === id);
-            if (producto) {
+            if (producto && newPrice) {
                 producto.precio = parseFloat(newPrice);
                 await saveToFirebase('inventario', producto);
+                alert('✅ Precio actualizado correctamente');
                 renderRecetasList(document.getElementById('searchRecetas')?.value || '');
             }
         }
@@ -928,6 +936,12 @@
                 <input type="number" class="recIngCantidad" placeholder="Cantidad" step="0.01" onchange="updateRecCost()">
                 <select class="recIngUnidad" onchange="updateRecCost()">
                     <option value="">Unidad</option>
+                    <option value="kg">kg</option>
+                    <option value="g">g</option>
+                    <option value="L">L</option>
+                    <option value="ml">ml</option>
+                    <option value="cc">cc</option>
+                    <option value="u">u</option>
                 </select>
                 <span style="text-align: right;"></span>
                 <button class="btn-danger" onclick="this.parentElement.remove(); updateRecCost();">✕</button>
@@ -1016,6 +1030,12 @@
                     <input type="number" class="recIngCantidad" placeholder="Cantidad" step="0.01" onchange="updateRecCost()">
                     <select class="recIngUnidad" onchange="updateRecCost()">
                         <option value="">Unidad</option>
+                        <option value="kg">kg</option>
+                        <option value="g">g</option>
+                        <option value="L">L</option>
+                        <option value="ml">ml</option>
+                        <option value="cc">cc</option>
+                        <option value="u">u</option>
                     </select>
                     <span style="text-align: right;"></span>
                     <button class="btn-danger" onclick="this.parentElement.remove(); updateRecCost();">✕</button>
