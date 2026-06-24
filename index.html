@@ -100,17 +100,20 @@
             margin-bottom: 2rem;
             border-bottom: 1px solid var(--border-color);
             flex-wrap: wrap;
+            overflow-x: auto;
         }
 
         .nav-tabs button {
             background: none;
             border: none;
-            padding: 0.75rem 1.5rem;
+            padding: 0.75rem 1rem;
             cursor: pointer;
             color: var(--text-secondary);
             border-bottom: 3px solid transparent;
             transition: all 0.2s;
             font-weight: 500;
+            white-space: nowrap;
+            font-size: 0.9rem;
         }
 
         .nav-tabs button.active {
@@ -231,6 +234,13 @@
             opacity: 0.9;
         }
 
+        .btn-edit {
+            background-color: var(--accent);
+            color: white;
+            padding: 0.5rem 1rem;
+            font-size: 0.85rem;
+        }
+
         .list-item {
             background: var(--bg-primary);
             border: 1px solid var(--border-color);
@@ -314,14 +324,60 @@
             margin-top: 1rem;
         }
 
-        .unit-badge {
-            display: inline-block;
-            background: var(--accent);
-            color: white;
-            padding: 0.25rem 0.75rem;
-            border-radius: 4px;
-            font-size: 0.8rem;
-            font-weight: 500;
+        .search-box {
+            margin-bottom: 1.5rem;
+        }
+
+        .search-box input {
+            width: 100%;
+            max-width: 300px;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+            overflow-y: auto;
+        }
+
+        .modal.active {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .modal-content {
+            background: var(--bg-primary);
+            border-radius: 12px;
+            padding: 2rem;
+            max-width: 600px;
+            width: 90%;
+            margin: 2rem 0;
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+        }
+
+        .modal-header h2 {
+            margin: 0;
+        }
+
+        .close-modal {
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            cursor: pointer;
+            color: var(--text-secondary);
+            padding: 0;
         }
 
         @media (max-width: 768px) {
@@ -361,17 +417,21 @@
                 width: 100%;
             }
 
-            .nav-tabs {
-                gap: 0;
-                border-bottom: 1px solid var(--border-color);
-            }
-
             .nav-tabs button {
-                flex: 1;
-                padding: 0.75rem;
-                text-align: center;
-                border-bottom-width: 2px;
+                padding: 0.75rem 0.5rem;
+                font-size: 0.8rem;
             }
+        }
+
+        .recipe-type-badge {
+            display: inline-block;
+            background: var(--accent);
+            color: white;
+            padding: 0.25rem 0.75rem;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            margin-right: 0.5rem;
         }
     </style>
 </head>
@@ -386,7 +446,9 @@
     <div class="container">
         <div class="nav-tabs">
             <button class="tab-btn active" data-tab="inventario">Inventario</button>
-            <button class="tab-btn" data-tab="subrecetas">Sub-recetas</button>
+            <button class="tab-btn" data-tab="editarInventario">Editar Inventario</button>
+            <button class="tab-btn" data-tab="agregarSubReceta">Agregar Sub Receta</button>
+            <button class="tab-btn" data-tab="agregarReceta">Agregar Receta</button>
             <button class="tab-btn" data-tab="recetas">Recetas</button>
         </div>
 
@@ -420,12 +482,21 @@
                 </div>
             </div>
 
-            <h2 style="margin-bottom: 1rem; margin-top: 2rem;">Inventario actual</h2>
+            <h2 style="margin-bottom: 1rem; margin-top: 2rem;">Productos agregados</h2>
             <div id="invList"></div>
         </div>
 
-        <!-- TAB: SUB-RECETAS -->
-        <div id="subrecetas" class="tab-content">
+        <!-- TAB: EDITAR INVENTARIO -->
+        <div id="editarInventario" class="tab-content">
+            <div class="form-section">
+                <h2>Editar Inventario</h2>
+                <p style="margin-bottom: 1.5rem; color: var(--text-secondary);">Actualiza los precios de tus productos. Los cambios se reflejarán automáticamente en tus recetas.</p>
+                <div id="editInvList"></div>
+            </div>
+        </div>
+
+        <!-- TAB: AGREGAR SUB-RECETA -->
+        <div id="agregarSubReceta" class="tab-content">
             <div class="form-section">
                 <h2>Crear Sub-receta</h2>
                 <div class="form-group">
@@ -475,13 +546,10 @@
                     <button class="btn-primary" id="btnSaveSub">Guardar sub-receta</button>
                 </div>
             </div>
-
-            <h2 style="margin-bottom: 1rem; margin-top: 2rem;">Sub-recetas guardadas</h2>
-            <div id="subList"></div>
         </div>
 
-        <!-- TAB: RECETAS -->
-        <div id="recetas" class="tab-content">
+        <!-- TAB: AGREGAR RECETA -->
+        <div id="agregarReceta" class="tab-content">
             <div class="form-section">
                 <h2>Crear Receta</h2>
                 <div class="form-group">
@@ -495,7 +563,7 @@
                 <div id="recIngredientes" class="ingredient-list">
                     <div class="ingredient-item">
                         <select class="recIngProducto" onchange="updateRecCost()">
-                            <option value="">Seleccionar producto...</option>
+                            <option value="">Seleccionar producto o sub-receta...</option>
                         </select>
                         <input type="number" class="recIngCantidad" placeholder="Cantidad" step="0.01" onchange="updateRecCost()">
                         <select class="recIngUnidad" onchange="updateRecCost()">
@@ -516,9 +584,28 @@
                     <button class="btn-primary" id="btnSaveRec">Guardar receta</button>
                 </div>
             </div>
+        </div>
 
-            <h2 style="margin-bottom: 1rem; margin-top: 2rem;">Recetas guardadas</h2>
-            <div id="recList"></div>
+        <!-- TAB: RECETAS -->
+        <div id="recetas" class="tab-content">
+            <div class="form-section">
+                <h2>Mis Recetas</h2>
+                <div class="search-box">
+                    <input type="text" id="searchRecetas" placeholder="🔍 Buscar receta o sub-receta...">
+                </div>
+                <div id="recetasList"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL PARA EDITAR RECETA -->
+    <div id="editModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="editModalTitle">Editar Receta</h2>
+                <button class="close-modal" onclick="closeModal()">✕</button>
+            </div>
+            <div id="editModalBody"></div>
         </div>
     </div>
 
@@ -533,7 +620,6 @@
             appId: "1:389866178283:web:6d3f67d516b3139ae6a0ae"
         };
 
-        // Initialize Firebase
         firebase.initializeApp(firebaseConfig);
         const db = firebase.firestore();
 
@@ -542,29 +628,26 @@
         let subrecetas = [];
         let recetas = [];
         let userId = 'default-user';
+        let editingId = null;
+        let editingType = null;
 
-        // Cargar datos desde Firestore
         async function loadDataFromFirebase() {
             try {
                 const invSnapshot = await db.collection('users').doc(userId).collection('inventario').get();
-                inventario = invSnapshot.docs.map(doc => ({...doc.data(), id: parseInt(doc.id)}));
+                inventario = invSnapshot.docs.map(doc => ({...doc.data(), id: parseInt(doc.id)})).sort((a, b) => a.nombre.localeCompare(b.nombre));
 
                 const subSnapshot = await db.collection('users').doc(userId).collection('subrecetas').get();
-                subrecetas = subSnapshot.docs.map(doc => ({...doc.data(), id: parseInt(doc.id)}));
+                subrecetas = subSnapshot.docs.map(doc => ({...doc.data(), id: parseInt(doc.id)})).sort((a, b) => a.nombre.localeCompare(b.nombre));
 
                 const recSnapshot = await db.collection('users').doc(userId).collection('recetas').get();
-                recetas = recSnapshot.docs.map(doc => ({...doc.data(), id: parseInt(doc.id)}));
+                recetas = recSnapshot.docs.map(doc => ({...doc.data(), id: parseInt(doc.id)})).sort((a, b) => a.nombre.localeCompare(b.nombre));
 
-                renderInventario();
-                renderSubrecetas();
-                renderRecetas();
-                updateSelectOptions();
+                renderAll();
             } catch (error) {
                 console.error('Error cargando datos:', error);
             }
         }
 
-        // Guardar en Firebase
         async function saveToFirebase(collection, data) {
             try {
                 const docId = data.id.toString();
@@ -575,7 +658,6 @@
             }
         }
 
-        // Eliminar de Firebase
         async function deleteFromFirebase(collection, id) {
             try {
                 await db.collection('users').doc(userId).collection(collection).doc(id.toString()).delete();
@@ -608,6 +690,10 @@
 
                 btn.classList.add('active');
                 document.getElementById(btn.dataset.tab).classList.add('active');
+                
+                if (btn.dataset.tab === 'recetas') {
+                    renderRecetasList('');
+                }
             });
         });
 
@@ -624,13 +710,13 @@
 
             const producto = { id: Date.now(), nombre, precio, unidad };
             inventario.push(producto);
+            inventario.sort((a, b) => a.nombre.localeCompare(b.nombre));
             await saveToFirebase('inventario', producto);
 
             document.getElementById('invNombre').value = '';
             document.getElementById('invPrecio').value = '';
 
-            renderInventario();
-            updateSelectOptions();
+            renderAll();
         });
 
         function renderInventario() {
@@ -655,28 +741,61 @@
             `).join('');
         }
 
+        function renderEditarInventario() {
+            const list = document.getElementById('editInvList');
+            if (inventario.length === 0) {
+                list.innerHTML = '<div class="empty-state">No hay productos para editar.</div>';
+                return;
+            }
+
+            list.innerHTML = inventario.map(p => `
+                <div class="list-item">
+                    <div class="list-item-content">
+                        <div class="list-item-title">${p.nombre}</div>
+                        <div class="form-group" style="margin: 0.5rem 0;">
+                            <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 1rem;">
+                                <div>
+                                    <label>Nuevo precio</label>
+                                    <input type="number" value="${p.precio}" step="0.01" onchange="updateProductPrice(${p.id}, this.value)">
+                                </div>
+                                <div style="display: flex; align-items: flex-end;">
+                                    <span style="color: var(--text-secondary);">/ ${p.unidad}</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        async function updateProductPrice(id, newPrice) {
+            const producto = inventario.find(p => p.id === id);
+            if (producto) {
+                producto.precio = parseFloat(newPrice);
+                await saveToFirebase('inventario', producto);
+                renderRecetasList(document.getElementById('searchRecetas')?.value || '');
+            }
+        }
+
         function deleteInventario(id) {
             inventario = inventario.filter(p => p.id !== id);
             deleteFromFirebase('inventario', id);
-            renderInventario();
-            updateSelectOptions();
+            renderAll();
         }
 
         function updateSelectOptions() {
-            const selects = document.querySelectorAll('.subIngProducto, .recIngProducto');
-            const options = inventario.map(p => `<option value="${p.id}">${p.nombre}</option>`).join('');
+            const invOptions = inventario.map(p => `<option value="${p.id}">${p.nombre}</option>`).join('');
+            const subOptions = subrecetas.map(s => `<option value="SUB_${s.id}">${s.nombre}</option>`).join('');
 
-            selects.forEach(select => {
+            document.querySelectorAll('.subIngProducto').forEach(select => {
                 const current = select.value;
-                select.innerHTML = '<option value="">Seleccionar producto...</option>' + options;
+                select.innerHTML = '<option value="">Seleccionar producto...</option>' + invOptions;
                 select.value = current;
             });
 
-            const subOptions = subrecetas.map(s => `<option value="SUB_${s.id}">${s.nombre}</option>`).join('');
-
             document.querySelectorAll('.recIngProducto').forEach(select => {
                 const current = select.value;
-                select.innerHTML = '<option value="">Seleccionar producto o sub-receta...</option>' + options + subOptions;
+                select.innerHTML = '<option value="">Seleccionar producto o sub-receta...</option>' + invOptions + subOptions;
                 select.value = current;
             });
         }
@@ -760,6 +879,7 @@
             };
 
             subrecetas.push(subreceta);
+            subrecetas.sort((a, b) => a.nombre.localeCompare(b.nombre));
             await saveToFirebase('subrecetas', subreceta);
 
             document.getElementById('subNombre').value = '';
@@ -779,37 +899,8 @@
             `;
             document.getElementById('subTotalCost').textContent = '$0';
 
-            renderSubrecetas();
-            updateSelectOptions();
+            renderAll();
         });
-
-        function renderSubrecetas() {
-            const list = document.getElementById('subList');
-            if (subrecetas.length === 0) {
-                list.innerHTML = '<div class="empty-state">No hay sub-recetas. Crea la primera.</div>';
-                return;
-            }
-
-            list.innerHTML = subrecetas.map(s => {
-                const cost = calculateSubrecetaCost(s);
-                const costPerUnit = cost / convertToBaseUnit(s.rendimiento, s.unidad);
-                return `
-                    <div class="list-item">
-                        <div class="list-item-content">
-                            <div class="list-item-title">${s.nombre}</div>
-                            <div class="list-item-info">
-                                <span>Costo total: $${cost.toLocaleString('es-ES', {maximumFractionDigits: 2})}</span>
-                                <span>Rendimiento: ${s.rendimiento} ${s.unidad}</span>
-                                <span>Costo por unidad: $${costPerUnit.toLocaleString('es-ES', {maximumFractionDigits: 2})} / ${s.unidad}</span>
-                            </div>
-                        </div>
-                        <div class="list-item-actions">
-                            <button class="btn-danger" onclick="deleteSubreceta(${s.id})">Eliminar</button>
-                        </div>
-                    </div>
-                `;
-            }).join('');
-        }
 
         function calculateSubrecetaCost(subreceta) {
             let total = 0;
@@ -821,13 +912,6 @@
                 }
             });
             return total;
-        }
-
-        function deleteSubreceta(id) {
-            subrecetas = subrecetas.filter(s => s.id !== id);
-            deleteFromFirebase('subrecetas', id);
-            renderSubrecetas();
-            updateSelectOptions();
         }
 
         // ==================== RECETAS ====================
@@ -915,10 +999,12 @@
             const receta = {
                 id: Date.now(),
                 nombre,
-                ingredientes
+                ingredientes,
+                tipo: 'receta'
             };
 
             recetas.push(receta);
+            recetas.sort((a, b) => a.nombre.localeCompare(b.nombre));
             await saveToFirebase('recetas', receta);
 
             document.getElementById('recNombre').value = '';
@@ -937,34 +1023,8 @@
             `;
             document.getElementById('recTotalCost').textContent = '$0';
 
-            renderRecetas();
-            updateSelectOptions();
+            renderAll();
         });
-
-        function renderRecetas() {
-            const list = document.getElementById('recList');
-            if (recetas.length === 0) {
-                list.innerHTML = '<div class="empty-state">No hay recetas. Crea la primera.</div>';
-                return;
-            }
-
-            list.innerHTML = recetas.map(r => {
-                const cost = calculateRecetaCost(r);
-                return `
-                    <div class="list-item">
-                        <div class="list-item-content">
-                            <div class="list-item-title">${r.nombre}</div>
-                            <div class="list-item-info">
-                                <span>Costo total: $${cost.toLocaleString('es-ES', {maximumFractionDigits: 2})}</span>
-                            </div>
-                        </div>
-                        <div class="list-item-actions">
-                            <button class="btn-danger" onclick="deleteReceta(${r.id})">Eliminar</button>
-                        </div>
-                    </div>
-                `;
-            }).join('');
-        }
 
         function calculateRecetaCost(receta) {
             let total = 0;
@@ -990,10 +1050,177 @@
             return total;
         }
 
-        function deleteReceta(id) {
-            recetas = recetas.filter(r => r.id !== id);
-            deleteFromFirebase('recetas', id);
-            renderRecetas();
+        function renderRecetasList(searchTerm = '') {
+            const list = document.getElementById('recetasList');
+            const allItems = [
+                ...recetas.map(r => ({...r, itemType: 'receta'})),
+                ...subrecetas.map(s => ({...s, itemType: 'subreceta'}))
+            ].sort((a, b) => a.nombre.localeCompare(b.nombre));
+
+            const filtered = allItems.filter(item => 
+                item.nombre.toLowerCase().includes(searchTerm.toLowerCase())
+            );
+
+            if (filtered.length === 0) {
+                list.innerHTML = '<div class="empty-state">No hay recetas. Crea la primera.</div>';
+                return;
+            }
+
+            list.innerHTML = filtered.map(item => {
+                const cost = item.itemType === 'receta' ? calculateRecetaCost(item) : calculateSubrecetaCost(item);
+                const badge = item.itemType === 'receta' ? '<span class="recipe-type-badge">RECETA</span>' : '<span class="recipe-type-badge" style="background: var(--success);">SUB-RECETA</span>';
+                
+                return `
+                    <div class="list-item">
+                        <div class="list-item-content">
+                            <div class="list-item-title">
+                                ${badge}
+                                ${item.nombre}
+                            </div>
+                            <div class="list-item-info">
+                                <span>Costo total: $${cost.toLocaleString('es-ES', {maximumFractionDigits: 2})}</span>
+                                ${item.itemType === 'subreceta' ? `<span>Rendimiento: ${item.rendimiento} ${item.unidad}</span>` : ''}
+                            </div>
+                        </div>
+                        <div class="list-item-actions">
+                            <button class="btn-edit" onclick="openEditModal('${item.itemType}', ${item.id})">✏️ Editar</button>
+                            <button class="btn-danger" onclick="deleteItem('${item.itemType}', ${item.id})">Eliminar</button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        document.getElementById('searchRecetas')?.addEventListener('input', (e) => {
+            renderRecetasList(e.target.value);
+        });
+
+        function deleteItem(type, id) {
+            if (type === 'receta') {
+                recetas = recetas.filter(r => r.id !== id);
+                deleteFromFirebase('recetas', id);
+            } else {
+                subrecetas = subrecetas.filter(s => s.id !== id);
+                deleteFromFirebase('subrecetas', id);
+            }
+            renderAll();
+        }
+
+        function openEditModal(type, id) {
+            editingType = type;
+            editingId = id;
+            
+            const modal = document.getElementById('editModal');
+            const title = document.getElementById('editModalTitle');
+            const body = document.getElementById('editModalBody');
+
+            let item, content;
+
+            if (type === 'receta') {
+                item = recetas.find(r => r.id === id);
+                title.textContent = `Editar Receta: ${item.nombre}`;
+                
+                const ingredientesHTML = item.ingredientes.map((ing, idx) => {
+                    let nombre = '';
+                    if (ing.id.startsWith('SUB_')) {
+                        const sub = subrecetas.find(s => s.id == parseInt(ing.id.replace('SUB_', '')));
+                        nombre = sub?.nombre || 'Sub-receta';
+                    } else {
+                        const prod = inventario.find(p => p.id == ing.id);
+                        nombre = prod?.nombre || 'Producto';
+                    }
+                    
+                    return `
+                        <div class="ingredient-item" style="border: 1px solid var(--border-color); padding: 1rem; border-radius: 8px; margin-bottom: 0.5rem;">
+                            <strong>${nombre}</strong>
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; margin-top: 0.5rem;">
+                                <input type="number" value="${ing.cantidad}" step="0.01" onchange="updateIngredient(${idx}, 'cantidad', this.value)" placeholder="Cantidad">
+                                <select onchange="updateIngredient(${idx}, 'unidad', this.value)">
+                                    <option value="${ing.unidad}" selected>${ing.unidad}</option>
+                                </select>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+
+                content = `
+                    <h3>Ingredientes</h3>
+                    ${ingredientesHTML}
+                    <div style="margin-top: 1rem; padding: 1rem; background: var(--accent-light); border-radius: 8px;">
+                        <strong>Costo total: $${calculateRecetaCost(item).toLocaleString('es-ES', {maximumFractionDigits: 2})}</strong>
+                    </div>
+                    <div class="button-group" style="margin-top: 1rem;">
+                        <button class="btn-primary" onclick="closeModal()">Guardar cambios</button>
+                    </div>
+                `;
+            } else {
+                item = subrecetas.find(s => s.id === id);
+                title.textContent = `Editar Sub-receta: ${item.nombre}`;
+                
+                const ingredientesHTML = item.ingredientes.map((ing, idx) => {
+                    const prod = inventario.find(p => p.id == ing.productId);
+                    const nombre = prod?.nombre || 'Producto';
+                    
+                    return `
+                        <div class="ingredient-item" style="border: 1px solid var(--border-color); padding: 1rem; border-radius: 8px; margin-bottom: 0.5rem;">
+                            <strong>${nombre}</strong>
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; margin-top: 0.5rem;">
+                                <input type="number" value="${ing.cantidad}" step="0.01" onchange="updateSubIngredient(${idx}, 'cantidad', this.value)" placeholder="Cantidad">
+                                <select onchange="updateSubIngredient(${idx}, 'unidad', this.value)">
+                                    <option value="${ing.unidad}" selected>${ing.unidad}</option>
+                                </select>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+
+                content = `
+                    <h3>Ingredientes</h3>
+                    ${ingredientesHTML}
+                    <div style="margin-top: 1rem; padding: 1rem; background: var(--accent-light); border-radius: 8px;">
+                        <strong>Costo total: $${calculateSubrecetaCost(item).toLocaleString('es-ES', {maximumFractionDigits: 2})}</strong>
+                    </div>
+                    <div class="button-group" style="margin-top: 1rem;">
+                        <button class="btn-primary" onclick="closeModal()">Guardar cambios</button>
+                    </div>
+                `;
+            }
+
+            body.innerHTML = content;
+            modal.classList.add('active');
+        }
+
+        function updateIngredient(idx, field, value) {
+            const item = recetas.find(r => r.id === editingId);
+            if (field === 'cantidad') {
+                item.ingredientes[idx].cantidad = parseFloat(value);
+            } else if (field === 'unidad') {
+                item.ingredientes[idx].unidad = value;
+            }
+        }
+
+        function updateSubIngredient(idx, field, value) {
+            const item = subrecetas.find(s => s.id === editingId);
+            if (field === 'cantidad') {
+                item.ingredientes[idx].cantidad = parseFloat(value);
+            } else if (field === 'unidad') {
+                item.ingredientes[idx].unidad = value;
+            }
+        }
+
+        function closeModal() {
+            const modal = document.getElementById('editModal');
+            modal.classList.remove('active');
+            
+            if (editingType === 'receta') {
+                const item = recetas.find(r => r.id === editingId);
+                saveToFirebase('recetas', item);
+            } else {
+                const item = subrecetas.find(s => s.id === editingId);
+                saveToFirebase('subrecetas', item);
+            }
+            
+            renderRecetasList(document.getElementById('searchRecetas')?.value || '');
         }
 
         // ==================== UTILITY FUNCTIONS ====================
@@ -1008,6 +1235,13 @@
             const precioBaseUnits = convertToBaseUnit(1, precioUnidad);
             const cantidadBaseUnits = convertToBaseUnit(cantidad, cantidadUnidad);
             return (precio / precioBaseUnits) * cantidadBaseUnits;
+        }
+
+        function renderAll() {
+            renderInventario();
+            renderEditarInventario();
+            updateSelectOptions();
+            renderRecetasList(document.getElementById('searchRecetas')?.value || '');
         }
 
         // ==================== INITIAL RENDER ====================
