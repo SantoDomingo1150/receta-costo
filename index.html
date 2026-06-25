@@ -578,7 +578,7 @@
 
         const CLASIFICACIONES_ALIMENTOS = [
             'PROTEINA', 'LIQUIDOS', 'LACTEOS', 'VERDURAS', 
-            'FRUTAS', 'ABARROTES', 'PULPAS', 'BEBIDAS'
+            'FRUTAS', 'ABARROTES', 'PULPAS', 'BEBIDAS', 'MATERIA PRIMA'
         ];
 
         // ==================== CARGAR DATOS ====================
@@ -606,31 +606,34 @@
                 const productosMap = {};
 
                 // Recorrer todas las facturas
-                facturasSnapshot.forEach(facturaDoc => {
+                for (const facturaDoc of facturasSnapshot.docs) {
                     const facturaData = facturaDoc.data();
                     const fecha = new Date(facturaData.fecha);
 
-                    if (facturaData.desglose && Array.isArray(facturaData.desglose)) {
-                        facturaData.desglose.forEach((item, idx) => {
-                            // Filtrar solo alimentos
-                            if (item.clasificacion && CLASIFICACIONES_ALIMENTOS.some(c => item.clasificacion.includes(c))) {
-                                const clave = item.producto.toUpperCase();
+                    // Leer subcollection items
+                    const itemsSnapshot = await facturaDoc.ref.collection('items').get();
 
-                                // Si no existe o esta es más reciente, guardar
-                                if (!productosMap[clave] || fecha > productosMap[clave].fecha) {
-                                    productosMap[clave] = {
-                                        nombre: item.producto,
-                                        precio: item.costoNeto || item.total,
-                                        unidad: item.unidad || 'unidad',
-                                        clasificacion: item.clasificacion,
-                                        fecha: fecha,
-                                        id: `compras_${clave}`
-                                    };
-                                }
+                    itemsSnapshot.forEach((itemDoc) => {
+                        const item = itemDoc.data();
+
+                        // Filtrar solo alimentos
+                        if (item.clasificacion && CLASIFICACIONES_ALIMENTOS.some(c => item.clasificacion.includes(c))) {
+                            const clave = item.producto.toUpperCase();
+
+                            // Si no existe o esta es más reciente, guardar
+                            if (!productosMap[clave] || fecha > productosMap[clave].fecha) {
+                                productosMap[clave] = {
+                                    nombre: item.producto,
+                                    precio: item.costoNeto || item.total,
+                                    unidad: item.unidad || 'unidad',
+                                    clasificacion: item.clasificacion,
+                                    fecha: fecha,
+                                    id: `compras_${clave}`
+                                };
                             }
-                        });
-                    }
-                });
+                        }
+                    });
+                }
 
                 // Convertir a array
                 inventario = Object.values(productosMap).sort((a, b) => a.nombre.localeCompare(b.nombre));
