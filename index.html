@@ -582,6 +582,82 @@
             'FRUTAS', 'ABARROTES', 'PULPAS', 'BEBIDAS', 'MATERIA PRIMA'
         ];
 
+        // ==================== PARSER DE PRODUCTOS ====================
+        function parseProducto(nombre, costoNeto, unidad, cantidad) {
+            // Detectar multiplicador: X48, X24, X12, x6, etc.
+            const multMatch = nombre.match(/\bX\s*(\d+)\b/i);
+            const multiplier = multMatch ? parseInt(multMatch[1]) : 1;
+
+            // Detectar peso/volumen por unidad: 184G, 500G, 1KG, 250ML, 1L, 500CC, etc.
+            const weightMatch = nombre.match(/(\d+(?:[.,]\d+)?)\s*(G|GR|KG|ML|L|LT|CC)\b/i);
+
+            let precioFinal = costoNeto;
+            let unidadFinal = unidad;
+            let nombreLimpio = nombre;
+
+            if (multiplier > 1 && weightMatch) {
+                // Tiene multiplicador Y peso: ej "ATUN 184G X48"
+                const peso = parseFloat(weightMatch[1].replace(',', '.'));
+                const pesoUnidad = weightMatch[2].toUpperCase();
+
+                // Convertir peso a gramos o ml
+                let pesoEnBase; // en gramos o ml
+                if (pesoUnidad === 'KG') pesoEnBase = peso * 1000;
+                else if (pesoUnidad === 'L' || pesoUnidad === 'LT') pesoEnBase = peso * 1000;
+                else pesoEnBase = peso; // G, GR, ML, CC
+
+                // Peso/volumen total de la caja
+                const totalBase = pesoEnBase * multiplier;
+
+                // Calcular precio por kg o L
+                if (['G', 'GR', 'KG'].includes(pesoUnidad)) {
+                    precioFinal = costoNeto / (totalBase / 1000); // precio por kg
+                    unidadFinal = 'kg';
+                } else {
+                    precioFinal = costoNeto / (totalBase / 1000); // precio por L
+                    unidadFinal = 'L';
+                }
+
+                console.log(`    📦 Desempaquetado: ${nombre} → ${multiplier} unidades x ${peso}${pesoUnidad} = ${totalBase}${['G','GR','KG'].includes(pesoUnidad)?'g':'ml'} → $${Math.round(precioFinal)}/${unidadFinal}`);
+
+            } else if (multiplier > 1) {
+                // Solo multiplicador sin peso: ej "HUEVOS X30"
+                precioFinal = costoNeto / multiplier;
+                unidadFinal = 'u';
+                console.log(`    📦 Desempaquetado: ${nombre} → ${multiplier} unidades → $${Math.round(precioFinal)}/u`);
+
+            } else if (unidad === 'caja' || unidad === 'CAJA') {
+                // Es caja pero no dice cuántas unidades
+                // Si tiene peso, calcular por kg/L
+                if (weightMatch) {
+                    const peso = parseFloat(weightMatch[1].replace(',', '.'));
+                    const pesoUnidad = weightMatch[2].toUpperCase();
+
+                    if (['G', 'GR', 'KG'].includes(pesoUnidad)) {
+                        let pesoKg = pesoUnidad === 'KG' ? peso : peso / 1000;
+                        precioFinal = costoNeto / pesoKg;
+                        unidadFinal = 'kg';
+                    } else {
+                        let volL = (pesoUnidad === 'L' || pesoUnidad === 'LT') ? peso : peso / 1000;
+                        precioFinal = costoNeto / volL;
+                        unidadFinal = 'L';
+                    }
+                }
+            }
+
+            // Limpiar nombre: quitar el XNN y peso para mejor lectura
+            nombreLimpio = nombre
+                .replace(/\s*[Xx]\s*\d+/g, '')
+                .replace(/\s+/g, ' ')
+                .trim();
+
+            return {
+                precio: Math.round(precioFinal),
+                unidad: unidadFinal,
+                nombreLimpio: nombreLimpio
+            };
+        }
+
         // ==================== CARGAR DATOS ====================
         async function loadDataFromFirebase() {
             try {
@@ -619,7 +695,6 @@
                 const CACHE_DURATION = 1000 * 60 * 60; // 1 hora
 
                 if (cache && cacheTime && (Date.now() - parseInt(cacheTime)) < CACHE_DURATION) {
-                    // Usar caché
                     inventario = JSON.parse(cache);
                     console.log('⚡ Cargado desde caché:', inventario.length, 'productos');
                     renderAll();
@@ -640,11 +715,9 @@
                 const facturasList = facturasSnapshot.docs;
                 const total = facturasList.length;
 
-                // Mostrar progreso en la pantalla
                 const list = document.getElementById('invList');
                 list.innerHTML = `<div class="empty-state">⏳ Cargando productos... 0/${total} facturas procesadas</div>`;
 
-                // Procesar en lotes de 20 para no bloquear la UI
                 const BATCH_SIZE = 20;
                 
                 for (let i = 0; i < total; i += BATCH_SIZE) {
@@ -661,16 +734,25 @@
                                 const item = itemDoc.data();
 
                                 if (item.clasificacion && CLASIFICACIONES_ALIMENTOS.some(c => item.clasificacion.includes(c))) {
-                                    const clave = item.producto.toUpperCase();
+                                    // Parsear producto (desempaquetar cajas)
+                                    const parsed = parseProducto(
+                                        item.producto, 
+                                        item.costoNeto || item.total || 0, 
+                                        item.unidad || 'unidad',
+                                        item.cantidad || 1
+                                    );
 
+                                    const clave = item.producto.toUpperCase().trim();
+
+                                    // Solo guardar si es más reciente
                                     if (!productosMap[clave] || fecha > productosMap[clave].fecha) {
                                         productosMap[clave] = {
-                                            nombre: item.producto,
-                                            precio: item.costoNeto || item.total || 0,
-                                            unidad: item.unidad || 'unidad',
+                                            nombre: parsed.nombreLimpio || item.producto,
+                                            precio: parsed.precio,
+                                            unidad: parsed.unidad,
                                             clasificacion: item.clasificacion,
                                             fecha: fecha,
-                                            id: `compras_${clave}`
+                                            id: `compras_${clave.replace(/[^A-Z0-9]/g, '_')}`
                                         };
                                     }
                                 }
@@ -685,7 +767,7 @@
                     list.innerHTML = `<div class="empty-state">⏳ Cargando... ${processed}/${total} facturas | ${found} productos encontrados</div>`;
                 }
 
-                // Convertir a array
+                // Convertir a array (SIN duplicados, solo el más reciente)
                 inventario = Object.values(productosMap).sort((a, b) => a.nombre.localeCompare(b.nombre));
                 
                 // Guardar en caché
