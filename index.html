@@ -4,10 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="theme-color" content="#ffffff">
-    <title>RecetaCosto - Cálculo de Recetas</title>
+    <title>RecetaCosto - Sistema Integrado</title>
     <!-- Firebase SDK -->
-    <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js" defer></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore-compat.js" defer></script>
     <style>
         * {
             margin: 0;
@@ -40,7 +40,7 @@
         }
 
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
             background-color: var(--bg-primary);
             color: var(--text-primary);
             transition: background-color 0.3s, color 0.3s;
@@ -69,7 +69,16 @@
             font-size: 1.5rem;
             font-weight: 700;
             color: var(--accent);
-            flex: 1;
+        }
+
+        .sync-status {
+            display: inline-block;
+            padding: 0.5rem 1rem;
+            background: var(--success);
+            color: white;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            font-weight: 500;
         }
 
         .theme-toggle {
@@ -80,7 +89,6 @@
             border-radius: 8px;
             cursor: pointer;
             font-size: 0.9rem;
-            transition: all 0.2s;
         }
 
         .theme-toggle:hover {
@@ -121,10 +129,6 @@
             border-bottom-color: var(--accent);
         }
 
-        .nav-tabs button:hover {
-            color: var(--text-primary);
-        }
-
         .tab-content {
             display: none;
         }
@@ -146,20 +150,11 @@
             font-size: 1.25rem;
         }
 
-        .form-section h3 {
-            margin-bottom: 1rem;
-            font-size: 1.1rem;
-        }
-
         .form-group {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
             gap: 1rem;
             margin-bottom: 1rem;
-        }
-
-        .form-group.full {
-            grid-column: 1 / -1;
         }
 
         label {
@@ -178,7 +173,6 @@
             background-color: var(--input-bg);
             color: var(--text-primary);
             font-size: 1rem;
-            transition: border-color 0.2s;
         }
 
         input:focus, select:focus {
@@ -210,32 +204,10 @@
 
         .btn-primary:hover {
             opacity: 0.9;
-            transform: translateY(-2px);
-        }
-
-        .btn-secondary {
-            background-color: var(--bg-primary);
-            color: var(--text-primary);
-            border: 1px solid var(--border-color);
-        }
-
-        .btn-secondary:hover {
-            background-color: var(--bg-secondary);
         }
 
         .btn-danger {
             background-color: var(--danger);
-            color: white;
-            padding: 0.5rem 1rem;
-            font-size: 0.85rem;
-        }
-
-        .btn-danger:hover {
-            opacity: 0.9;
-        }
-
-        .btn-edit {
-            background-color: var(--accent);
             color: white;
             padding: 0.5rem 1rem;
             font-size: 0.85rem;
@@ -253,11 +225,6 @@
             align-items: start;
         }
 
-        .list-item-content {
-            display: grid;
-            gap: 0.5rem;
-        }
-
         .list-item-title {
             font-weight: 600;
             font-size: 1.05rem;
@@ -269,26 +236,18 @@
             flex-wrap: wrap;
             font-size: 0.9rem;
             color: var(--text-secondary);
+            margin-top: 0.5rem;
         }
 
         .list-item-actions {
             display: flex;
             gap: 0.5rem;
-            justify-content: flex-end;
         }
 
         .empty-state {
             text-align: center;
             padding: 2rem;
             color: var(--text-secondary);
-        }
-
-        .ingredient-list {
-            background: var(--bg-primary);
-            border: 1px solid var(--border-color);
-            border-radius: 8px;
-            padding: 1rem;
-            margin-bottom: 1rem;
         }
 
         .ingredient-item {
@@ -309,99 +268,63 @@
             padding: 0.5rem;
         }
 
-        .cost-display {
+        .cost-box {
+            background: var(--accent-light);
+            border-radius: 8px;
+            padding: 1.5rem;
+            margin-top: 1.5rem;
+        }
+
+        .cost-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 0.5rem 0;
+            font-size: 0.95rem;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .cost-row:last-child {
+            border-bottom: none;
+        }
+
+        .cost-label {
+            font-weight: 500;
+            color: var(--text-secondary);
+        }
+
+        .cost-value {
             font-weight: 600;
             color: var(--accent);
         }
 
-        .total-cost {
-            font-size: 1.25rem;
+        .final-price {
+            font-size: 1.5rem;
             font-weight: 700;
-            padding: 1rem;
-            background: var(--accent-light);
-            border-radius: 8px;
+            color: var(--success);
             text-align: right;
             margin-top: 1rem;
+            padding-top: 1rem;
+            border-top: 2px solid var(--border-color);
         }
 
-        .search-box {
-            margin-bottom: 1.5rem;
+        .sync-indicator {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            background: var(--success);
+            border-radius: 50%;
+            margin-right: 0.5rem;
+            animation: pulse 2s infinite;
         }
 
-        .search-box input {
-            width: 100%;
-            max-width: 300px;
-        }
-
-        .modal {
-            display: none;
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0, 0, 0, 0.5);
-            z-index: 1000;
-            overflow-y: auto;
-        }
-
-        .modal.active {
-            display: flex;
-            justify-content: center;
-            align-items: center;
-        }
-
-        .modal-content {
-            background: var(--bg-primary);
-            border-radius: 12px;
-            padding: 2rem;
-            max-width: 600px;
-            width: 90%;
-            margin: 2rem 0;
-        }
-
-        .modal-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 1.5rem;
-        }
-
-        .modal-header h2 {
-            margin: 0;
-        }
-
-        .close-modal {
-            background: none;
-            border: none;
-            font-size: 1.5rem;
-            cursor: pointer;
-            color: var(--text-secondary);
-            padding: 0;
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
         }
 
         @media (max-width: 768px) {
-            .header-content {
-                flex-direction: column;
-                gap: 0.75rem;
-            }
-
-            .logo {
-                flex: 1;
-                width: 100%;
-            }
-
-            .form-group {
-                grid-template-columns: 1fr;
-            }
-
-            .list-item {
-                grid-template-columns: 1fr;
-            }
-
             .ingredient-item {
                 grid-template-columns: 1fr;
-                gap: 0.5rem;
             }
 
             .ingredient-item input,
@@ -416,11 +339,6 @@
             button {
                 width: 100%;
             }
-
-            .nav-tabs button {
-                padding: 0.75rem 0.5rem;
-                font-size: 0.8rem;
-            }
         }
 
         .recipe-type-badge {
@@ -433,20 +351,33 @@
             font-weight: 600;
             margin-right: 0.5rem;
         }
+
+        .search-box {
+            margin-bottom: 1.5rem;
+        }
+
+        .search-box input {
+            width: 100%;
+            max-width: 300px;
+        }
     </style>
 </head>
 <body>
     <header>
         <div class="header-content">
-            <div class="logo">📋 RecetaCosto</div>
+            <div>
+                <div class="logo">📋 RecetaCosto</div>
+                <div style="font-size: 0.8rem; color: var(--text-secondary); margin-top: 0.25rem;">
+                    <span class="sync-indicator"></span>Sincronizado con Compras
+                </div>
+            </div>
             <button class="theme-toggle" id="themeToggle">🌙 Oscuro</button>
         </div>
     </header>
 
     <div class="container">
         <div class="nav-tabs">
-            <button class="tab-btn active" data-tab="inventario">Inventario</button>
-            <button class="tab-btn" data-tab="editarInventario">Editar Inventario</button>
+            <button class="tab-btn active" data-tab="inventario">Inventario (Compras)</button>
             <button class="tab-btn" data-tab="agregarSubReceta">Agregar Sub Receta</button>
             <button class="tab-btn" data-tab="agregarReceta">Agregar Receta</button>
             <button class="tab-btn" data-tab="recetas">Recetas</button>
@@ -455,43 +386,9 @@
         <!-- TAB: INVENTARIO -->
         <div id="inventario" class="tab-content active">
             <div class="form-section">
-                <h2>Agregar Producto</h2>
-                <div class="form-group">
-                    <div>
-                        <label>Nombre del producto</label>
-                        <input type="text" id="invNombre" placeholder="Ej: Carne de res">
-                    </div>
-                    <div>
-                        <label>Precio</label>
-                        <input type="number" id="invPrecio" placeholder="10000" step="0.01">
-                    </div>
-                    <div>
-                        <label>Unidad base</label>
-                        <select id="invUnidad">
-                            <option value="kg">kg (kilogramo)</option>
-                            <option value="g">g (gramo)</option>
-                            <option value="L">L (litro)</option>
-                            <option value="ml">ml (mililitro)</option>
-                            <option value="cc">cc (centímetro cúbico)</option>
-                            <option value="u">u (unidad)</option>
-                        </select>
-                    </div>
-                </div>
-                <div class="button-group">
-                    <button class="btn-primary" id="btnAddInv">Agregar producto</button>
-                </div>
-            </div>
-
-            <h2 style="margin-bottom: 1rem; margin-top: 2rem;">Productos agregados</h2>
-            <div id="invList"></div>
-        </div>
-
-        <!-- TAB: EDITAR INVENTARIO -->
-        <div id="editarInventario" class="tab-content">
-            <div class="form-section">
-                <h2>Editar Inventario</h2>
-                <p style="margin-bottom: 1.5rem; color: var(--text-secondary);">Actualiza los precios de tus productos. Los cambios se reflejarán automáticamente en tus recetas.</p>
-                <div id="editInvList"></div>
+                <h2>Inventario (Sincronizado desde Compras)</h2>
+                <p style="color: var(--text-secondary); margin-bottom: 1rem;">Los productos se actualizan automáticamente con el último precio de compra.</p>
+                <div id="invList"></div>
             </div>
         </div>
 
@@ -505,11 +402,11 @@
                         <input type="text" id="subNombre" placeholder="Ej: Salsa de ajo">
                     </div>
                     <div>
-                        <label>Rendimiento (cantidad producida)</label>
+                        <label>Rendimiento</label>
                         <input type="number" id="subRendimiento" placeholder="1000" step="0.1">
                     </div>
                     <div>
-                        <label>Unidad del rendimiento</label>
+                        <label>Unidad</label>
                         <select id="subUnidadRendimiento">
                             <option value="kg">kg</option>
                             <option value="g">g</option>
@@ -522,7 +419,7 @@
                 </div>
 
                 <h3 style="margin-top: 1.5rem; margin-bottom: 1rem;">Ingredientes</h3>
-                <div id="subIngredientes" class="ingredient-list">
+                <div id="subIngredientes" style="background: var(--bg-primary); border: 1px solid var(--border-color); border-radius: 8px; padding: 1rem; margin-bottom: 1rem;">
                     <div class="ingredient-item">
                         <select class="subIngProducto" onchange="updateSubCost()">
                             <option value="">Seleccionar producto...</option>
@@ -530,16 +427,25 @@
                         <input type="number" class="subIngCantidad" placeholder="Cantidad" step="0.01" onchange="updateSubCost()">
                         <select class="subIngUnidad" onchange="updateSubCost()">
                             <option value="">Unidad</option>
+                            <option value="kg">kg</option>
+                            <option value="g">g</option>
+                            <option value="L">L</option>
+                            <option value="ml">ml</option>
+                            <option value="cc">cc</option>
+                            <option value="u">u</option>
                         </select>
                         <span style="text-align: right;"></span>
                         <button class="btn-danger" onclick="this.parentElement.remove(); updateSubCost();">✕</button>
                     </div>
                 </div>
 
-                <button class="btn-secondary" id="btnAddIngrediente" style="margin-bottom: 1rem;">+ Agregar ingrediente</button>
+                <button class="btn-primary" id="btnAddIngrediente" style="margin-bottom: 1rem;">+ Agregar ingrediente</button>
 
-                <div class="total-cost">
-                    Costo total: <span id="subTotalCost">$0</span>
+                <div class="cost-box">
+                    <div class="cost-row">
+                        <span class="cost-label">Costo total:</span>
+                        <span class="cost-value" id="subTotalCost">$0</span>
+                    </div>
                 </div>
 
                 <div class="button-group" style="margin-top: 1rem;">
@@ -560,7 +466,7 @@
                 </div>
 
                 <h3 style="margin-top: 1.5rem; margin-bottom: 1rem;">Ingredientes</h3>
-                <div id="recIngredientes" class="ingredient-list">
+                <div id="recIngredientes" style="background: var(--bg-primary); border: 1px solid var(--border-color); border-radius: 8px; padding: 1rem; margin-bottom: 1rem;">
                     <div class="ingredient-item">
                         <select class="recIngProducto" onchange="updateRecCost()">
                             <option value="">Seleccionar producto o sub-receta...</option>
@@ -580,10 +486,28 @@
                     </div>
                 </div>
 
-                <button class="btn-secondary" id="btnAddRecIngrediente" style="margin-bottom: 1rem;">+ Agregar ingrediente</button>
+                <button class="btn-primary" id="btnAddRecIngrediente" style="margin-bottom: 1rem;">+ Agregar ingrediente</button>
 
-                <div class="total-cost">
-                    Costo total del plato: <span id="recTotalCost">$0</span>
+                <div class="cost-box">
+                    <div class="cost-row">
+                        <span class="cost-label">Costo neto:</span>
+                        <span class="cost-value" id="recNetoCost">$0</span>
+                    </div>
+                    <div class="cost-row">
+                        <span class="cost-label">Precio base (÷0.35):</span>
+                        <span class="cost-value" id="recBasePriceCost">$0</span>
+                    </div>
+                    <div class="cost-row">
+                        <span class="cost-label">IVA 19%:</span>
+                        <span class="cost-value" id="recIVACost">$0</span>
+                    </div>
+                    <div class="cost-row">
+                        <span class="cost-label">Precio con IVA:</span>
+                        <span class="cost-value" id="recPriceWithIVA">$0</span>
+                    </div>
+                    <div class="final-price">
+                        💰 Precio sugerido: $<span id="recSuggestedPrice">0</span>
+                    </div>
                 </div>
 
                 <div class="button-group" style="margin-top: 1rem;">
@@ -597,56 +521,78 @@
             <div class="form-section">
                 <h2>Mis Recetas</h2>
                 <div class="search-box">
-                    <input type="text" id="searchRecetas" placeholder="🔍 Buscar receta o sub-receta...">
+                    <input type="text" id="searchRecetas" placeholder="🔍 Buscar receta...">
                 </div>
                 <div id="recetasList"></div>
             </div>
         </div>
     </div>
 
-    <!-- MODAL PARA EDITAR RECETA -->
-    <div id="editModal" class="modal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h2 id="editModalTitle">Editar Receta</h2>
-                <button class="close-modal" onclick="closeModal()">✕</button>
-            </div>
-            <div id="editModalBody"></div>
-        </div>
-    </div>
-
     <script>
-        // ==================== FIREBASE CONFIG ====================
-        const firebaseConfig = {
-            apiKey: "AIzaSyD-og1N-hzkK1ZLkU1TLrgQ14dsbC9L7Mw",
-            authDomain: "receta-costo.firebaseapp.com",
-            projectId: "receta-costo",
-            storageBucket: "receta-costo.firebasestorage.app",
-            messagingSenderId: "389866178283",
-            appId: "1:389866178283:web:6d3f67d516b3139ae6a0ae"
-        };
+        // Esperar a que Firebase esté disponible
+        function initFirebase() {
+            if (typeof firebase === 'undefined') {
+                setTimeout(initFirebase, 100);
+                return;
+            }
 
-        firebase.initializeApp(firebaseConfig);
-        const db = firebase.firestore();
+            // ==================== FIREBASE CONFIGS ====================
+            // Firebase RecetaCosto (este proyecto)
+            const recetaCostoConfig = {
+                apiKey: "AIzaSyD-og1N-hzkK1ZLkU1TLrgQ14dsbC9L7Mw",
+                authDomain: "receta-costo.firebaseapp.com",
+                projectId: "receta-costo",
+                storageBucket: "receta-costo.firebasestorage.app",
+                messagingSenderId: "389866178283",
+                appId: "1:389866178283:web:6d3f67d516b3139ae6a0ae"
+            };
 
-        // ==================== DATA MANAGEMENT ====================
+            // Firebase Sistema de Compras (proyecto externo)
+            const comprasConfig = {
+                apiKey: "AIzaSyBiHJL9m_lGDEzWFotcMS8gDzuB-rthK_0",
+                authDomain: "compras-app-47a71.firebaseapp.com",
+                projectId: "compras-app-47a71",
+                storageBucket: "compras-app-47a71.firebasestorage.app",
+                messagingSenderId: "705771914705",
+                appId: "1:705771914705:web:8609ddcf63a4cf32778cf0"
+            };
+
+            // Inicializar ambos Firebase
+            firebase.initializeApp(recetaCostoConfig);
+            window.dbReceta = firebase.firestore();
+
+            const comprasApp = firebase.initializeApp(comprasConfig, "compras");
+            window.dbCompras = comprasApp.firestore();
+
+            // Iniciar la aplicación
+            startApp();
+        }
+
+        function startApp() {
+
+        // ==================== DATA ====================
         let inventario = [];
         let subrecetas = [];
         let recetas = [];
         let userId = 'default-user';
-        let editingId = null;
-        let editingType = null;
 
+        const CLASIFICACIONES_ALIMENTOS = [
+            'PROTEINA', 'LIQUIDOS', 'LACTEOS', 'VERDURAS', 
+            'FRUTAS', 'ABARROTES', 'PULPAS', 'BEBIDAS'
+        ];
+
+        // ==================== CARGAR DATOS ====================
         async function loadDataFromFirebase() {
             try {
-                const invSnapshot = await db.collection('users').doc(userId).collection('inventario').get();
-                inventario = invSnapshot.docs.map(doc => ({...doc.data(), id: parseInt(doc.id)})).sort((a, b) => a.nombre.localeCompare(b.nombre));
-
-                const subSnapshot = await db.collection('users').doc(userId).collection('subrecetas').get();
+                // Cargar recetas y sub-recetas del proyecto RecetaCosto
+                const subSnapshot = await window.dbReceta.collection('users').doc(userId).collection('subrecetas').get();
                 subrecetas = subSnapshot.docs.map(doc => ({...doc.data(), id: parseInt(doc.id)})).sort((a, b) => a.nombre.localeCompare(b.nombre));
 
-                const recSnapshot = await db.collection('users').doc(userId).collection('recetas').get();
+                const recSnapshot = await window.dbReceta.collection('users').doc(userId).collection('recetas').get();
                 recetas = recSnapshot.docs.map(doc => ({...doc.data(), id: parseInt(doc.id)})).sort((a, b) => a.nombre.localeCompare(b.nombre));
+
+                // Cargar productos desde Sistema de Compras
+                await loadProductosFromCompras();
 
                 renderAll();
             } catch (error) {
@@ -654,25 +600,63 @@
             }
         }
 
+        async function loadProductosFromCompras() {
+            try {
+                const facturasSnapshot = await window.dbCompras.collection('facturas').get();
+                const productosMap = {};
+
+                // Recorrer todas las facturas
+                facturasSnapshot.forEach(facturaDoc => {
+                    const facturaData = facturaDoc.data();
+                    const fecha = new Date(facturaData.fecha);
+
+                    if (facturaData.desglose && Array.isArray(facturaData.desglose)) {
+                        facturaData.desglose.forEach((item, idx) => {
+                            // Filtrar solo alimentos
+                            if (item.clasificacion && CLASIFICACIONES_ALIMENTOS.some(c => item.clasificacion.includes(c))) {
+                                const clave = item.producto.toUpperCase();
+
+                                // Si no existe o esta es más reciente, guardar
+                                if (!productosMap[clave] || fecha > productosMap[clave].fecha) {
+                                    productosMap[clave] = {
+                                        nombre: item.producto,
+                                        precio: item.costoNeto || item.total,
+                                        unidad: item.unidad || 'unidad',
+                                        clasificacion: item.clasificacion,
+                                        fecha: fecha,
+                                        id: `compras_${clave}`
+                                    };
+                                }
+                            }
+                        });
+                    }
+                });
+
+                // Convertir a array
+                inventario = Object.values(productosMap).sort((a, b) => a.nombre.localeCompare(b.nombre));
+            } catch (error) {
+                console.error('Error cargando productos de Compras:', error);
+            }
+        }
+
         async function saveToFirebase(collection, data) {
             try {
                 const docId = data.id.toString();
-                await db.collection('users').doc(userId).collection(collection).doc(docId).set(data);
+                await window.dbReceta.collection('users').doc(userId).collection(collection).doc(docId).set(data);
             } catch (error) {
-                console.error('Error guardando en Firebase:', error);
-                alert('Error al guardar. Verifica tu conexión a internet.');
+                console.error('Error guardando:', error);
             }
         }
 
         async function deleteFromFirebase(collection, id) {
             try {
-                await db.collection('users').doc(userId).collection(collection).doc(id.toString()).delete();
+                await window.dbReceta.collection('users').doc(userId).collection(collection).doc(id.toString()).delete();
             } catch (error) {
-                console.error('Error eliminando de Firebase:', error);
+                console.error('Error eliminando:', error);
             }
         }
 
-        // ==================== THEME TOGGLE ====================
+        // ==================== THEME ====================
         const themeToggle = document.getElementById('themeToggle');
         const isDarkMode = localStorage.getItem('darkMode') === 'true';
 
@@ -688,7 +672,7 @@
             themeToggle.textContent = isDark ? '☀️ Claro' : '🌙 Oscuro';
         });
 
-        // ==================== TAB NAVIGATION ====================
+        // ==================== TABS ====================
         document.querySelectorAll('.tab-btn').forEach(btn => {
             btn.addEventListener('click', () => {
                 document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
@@ -704,103 +688,24 @@
         });
 
         // ==================== INVENTARIO ====================
-        document.getElementById('btnAddInv').addEventListener('click', async () => {
-            const nombre = document.getElementById('invNombre').value;
-            const precio = parseFloat(document.getElementById('invPrecio').value);
-            const unidad = document.getElementById('invUnidad').value;
-
-            if (!nombre || !precio || !unidad) {
-                alert('Por favor completa todos los campos');
-                return;
-            }
-
-            const producto = { id: Date.now(), nombre, precio, unidad };
-            inventario.push(producto);
-            inventario.sort((a, b) => a.nombre.localeCompare(b.nombre));
-            await saveToFirebase('inventario', producto);
-
-            document.getElementById('invNombre').value = '';
-            document.getElementById('invPrecio').value = '';
-
-            renderAll();
-        });
-
         function renderInventario() {
             const list = document.getElementById('invList');
             if (inventario.length === 0) {
-                list.innerHTML = '<div class="empty-state">No hay productos. Agrega el primero.</div>';
+                list.innerHTML = '<div class="empty-state">Cargando productos desde Compras...</div>';
                 return;
             }
 
             list.innerHTML = inventario.map(p => `
                 <div class="list-item">
-                    <div class="list-item-content">
+                    <div>
                         <div class="list-item-title">${p.nombre}</div>
                         <div class="list-item-info">
                             <span>$${p.precio.toLocaleString('es-ES')} / ${p.unidad}</span>
-                        </div>
-                    </div>
-                    <div class="list-item-actions">
-                        <button class="btn-danger" onclick="deleteInventario(${p.id})">Eliminar</button>
-                    </div>
-                </div>
-            `).join('');
-        }
-
-        function renderEditarInventario() {
-            const list = document.getElementById('editInvList');
-            if (inventario.length === 0) {
-                list.innerHTML = '<div class="empty-state">No hay productos para editar.</div>';
-                return;
-            }
-
-            list.innerHTML = inventario.map(p => `
-                <div class="list-item">
-                    <div class="list-item-content">
-                        <div class="list-item-title">${p.nombre}</div>
-                        <div class="form-group" style="margin: 0.5rem 0;">
-                            <div style="display: grid; grid-template-columns: 2fr 1fr 120px; gap: 1rem; align-items: flex-end;">
-                                <div>
-                                    <label>Nuevo precio</label>
-                                    <input type="number" id="price_${p.id}" value="${p.precio}" step="0.01" placeholder="Ingresa nuevo precio">
-                                </div>
-                                <div>
-                                    <span style="color: var(--text-secondary);">/ ${p.unidad}</span>
-                                </div>
-                                <button class="btn-primary" onclick="updateProductPrice(${p.id})" style="padding: 0.75rem 1.5rem; width: 100%;">💾 Guardar</button>
-                            </div>
+                            <span style="background: var(--accent); color: white; padding: 0.25rem 0.75rem; border-radius: 4px; font-size: 0.75rem;">${p.clasificacion}</span>
                         </div>
                     </div>
                 </div>
             `).join('');
-        }
-
-        async function updateProductPrice(id) {
-            const newPrice = document.getElementById('price_' + id).value;
-            const producto = inventario.find(p => p.id === id);
-            if (producto && newPrice) {
-                producto.precio = parseFloat(newPrice);
-                await saveToFirebase('inventario', producto);
-                
-                // Actualizar ambas vistas inmediatamente
-                renderInventario();
-                renderEditarInventario();
-                renderRecetasList(document.getElementById('searchRecetas')?.value || '');
-                
-                // Mostrar feedback visual
-                const button = event.target;
-                const originalText = button.textContent;
-                button.textContent = '✅ ¡Guardado!';
-                setTimeout(() => {
-                    button.textContent = originalText;
-                }, 2000);
-            }
-        }
-
-        function deleteInventario(id) {
-            inventario = inventario.filter(p => p.id !== id);
-            deleteFromFirebase('inventario', id);
-            renderAll();
         }
 
         function updateSelectOptions() {
@@ -833,6 +738,12 @@
                 <input type="number" class="subIngCantidad" placeholder="Cantidad" step="0.01" onchange="updateSubCost()">
                 <select class="subIngUnidad" onchange="updateSubCost()">
                     <option value="">Unidad</option>
+                    <option value="kg">kg</option>
+                    <option value="g">g</option>
+                    <option value="L">L</option>
+                    <option value="ml">ml</option>
+                    <option value="cc">cc</option>
+                    <option value="u">u</option>
                 </select>
                 <span style="text-align: right;"></span>
                 <button class="btn-danger" onclick="this.parentElement.remove(); updateSubCost();">✕</button>
@@ -854,14 +765,14 @@
                     if (producto) {
                         const cost = calculateCost(producto.precio, producto.unidad, cantidad, unidad);
                         totalCost += cost;
-                        item.querySelector('span').textContent = `$${cost.toLocaleString('es-ES', {maximumFractionDigits: 2})}`;
+                        item.querySelector('span').textContent = `$${cost.toLocaleString('es-ES', {maximumFractionDigits: 0})}`;
                     }
                 } else {
                     item.querySelector('span').textContent = '';
                 }
             });
 
-            document.getElementById('subTotalCost').textContent = `$${totalCost.toLocaleString('es-ES', {maximumFractionDigits: 2})}`;
+            document.getElementById('subTotalCost').textContent = `$${totalCost.toLocaleString('es-ES', {maximumFractionDigits: 0})}`;
         }
 
         document.getElementById('btnSaveSub').addEventListener('click', async () => {
@@ -912,6 +823,12 @@
                     <input type="number" class="subIngCantidad" placeholder="Cantidad" step="0.01" onchange="updateSubCost()">
                     <select class="subIngUnidad" onchange="updateSubCost()">
                         <option value="">Unidad</option>
+                        <option value="kg">kg</option>
+                        <option value="g">g</option>
+                        <option value="L">L</option>
+                        <option value="ml">ml</option>
+                        <option value="cc">cc</option>
+                        <option value="u">u</option>
                     </select>
                     <span style="text-align: right;"></span>
                     <button class="btn-danger" onclick="this.parentElement.remove(); updateSubCost();">✕</button>
@@ -989,13 +906,29 @@
                         }
                     }
                     totalCost += cost;
-                    item.querySelector('span').textContent = `$${cost.toLocaleString('es-ES', {maximumFractionDigits: 2})}`;
+                    item.querySelector('span').textContent = `$${cost.toLocaleString('es-ES', {maximumFractionDigits: 0})}`;
                 } else {
                     item.querySelector('span').textContent = '';
                 }
             });
 
-            document.getElementById('recTotalCost').textContent = `$${totalCost.toLocaleString('es-ES', {maximumFractionDigits: 2})}`;
+            // Mostrar cálculos
+            const precioBase = totalCost / 0.35;
+            const iva = precioBase * 0.19;
+            const precioConIVA = precioBase * 1.19;
+            const precioSugerido = roundTo990(precioConIVA);
+
+            document.getElementById('recNetoCost').textContent = `$${totalCost.toLocaleString('es-ES', {maximumFractionDigits: 0})}`;
+            document.getElementById('recBasePriceCost').textContent = `$${precioBase.toLocaleString('es-ES', {maximumFractionDigits: 0})}`;
+            document.getElementById('recIVACost').textContent = `$${iva.toLocaleString('es-ES', {maximumFractionDigits: 0})}`;
+            document.getElementById('recPriceWithIVA').textContent = `$${precioConIVA.toLocaleString('es-ES', {maximumFractionDigits: 0})}`;
+            document.getElementById('recSuggestedPrice').textContent = precioSugerido.toLocaleString('es-ES', {maximumFractionDigits: 0});
+        }
+
+        function roundTo990(price) {
+            // Redondea al 990 más cercano
+            const base = Math.floor(price / 1000) * 1000;
+            return base + 990;
         }
 
         document.getElementById('btnSaveRec').addEventListener('click', async () => {
@@ -1025,8 +958,7 @@
             const receta = {
                 id: Date.now(),
                 nombre,
-                ingredientes,
-                tipo: 'receta'
+                ingredientes
             };
 
             recetas.push(receta);
@@ -1053,7 +985,11 @@
                     <button class="btn-danger" onclick="this.parentElement.remove(); updateRecCost();">✕</button>
                 </div>
             `;
-            document.getElementById('recTotalCost').textContent = '$0';
+            document.getElementById('recNetoCost').textContent = '$0';
+            document.getElementById('recBasePriceCost').textContent = '$0';
+            document.getElementById('recIVACost').textContent = '$0';
+            document.getElementById('recPriceWithIVA').textContent = '$0';
+            document.getElementById('recSuggestedPrice').textContent = '0';
 
             renderAll();
         });
@@ -1084,12 +1020,8 @@
 
         function renderRecetasList(searchTerm = '') {
             const list = document.getElementById('recetasList');
-            const allItems = [
-                ...recetas.map(r => ({...r, itemType: 'receta'})),
-                ...subrecetas.map(s => ({...s, itemType: 'subreceta'}))
-            ].sort((a, b) => a.nombre.localeCompare(b.nombre));
 
-            const filtered = allItems.filter(item => 
+            const filtered = recetas.filter(item => 
                 item.nombre.toLowerCase().includes(searchTerm.toLowerCase())
             );
 
@@ -1099,24 +1031,40 @@
             }
 
             list.innerHTML = filtered.map(item => {
-                const cost = item.itemType === 'receta' ? calculateRecetaCost(item) : calculateSubrecetaCost(item);
-                const badge = item.itemType === 'receta' ? '<span class="recipe-type-badge">RECETA</span>' : '<span class="recipe-type-badge" style="background: var(--success);">SUB-RECETA</span>';
+                const cost = calculateRecetaCost(item);
+                const precioBase = cost / 0.35;
+                const iva = precioBase * 0.19;
+                const precioConIVA = precioBase * 1.19;
+                const precioSugerido = roundTo990(precioConIVA);
                 
                 return `
                     <div class="list-item">
-                        <div class="list-item-content">
-                            <div class="list-item-title">
-                                ${badge}
-                                ${item.nombre}
-                            </div>
-                            <div class="list-item-info">
-                                <span>Costo total: $${cost.toLocaleString('es-ES', {maximumFractionDigits: 2})}</span>
-                                ${item.itemType === 'subreceta' ? `<span>Rendimiento: ${item.rendimiento} ${item.unidad}</span>` : ''}
+                        <div>
+                            <div class="list-item-title">${item.nombre}</div>
+                            <div style="background: var(--accent-light); border-radius: 8px; padding: 1rem; margin-top: 0.75rem;">
+                                <div class="cost-row">
+                                    <span class="cost-label">Costo neto:</span>
+                                    <span class="cost-value">$${cost.toLocaleString('es-ES', {maximumFractionDigits: 0})}</span>
+                                </div>
+                                <div class="cost-row">
+                                    <span class="cost-label">Precio base (÷0.35):</span>
+                                    <span class="cost-value">$${precioBase.toLocaleString('es-ES', {maximumFractionDigits: 0})}</span>
+                                </div>
+                                <div class="cost-row">
+                                    <span class="cost-label">IVA 19%:</span>
+                                    <span class="cost-value">$${iva.toLocaleString('es-ES', {maximumFractionDigits: 0})}</span>
+                                </div>
+                                <div class="cost-row">
+                                    <span class="cost-label">Precio con IVA:</span>
+                                    <span class="cost-value">$${precioConIVA.toLocaleString('es-ES', {maximumFractionDigits: 0})}</span>
+                                </div>
+                                <div class="final-price">
+                                    💰 Precio sugerido carta: $${precioSugerido.toLocaleString('es-ES', {maximumFractionDigits: 0})}
+                                </div>
                             </div>
                         </div>
                         <div class="list-item-actions">
-                            <button class="btn-edit" onclick="openEditModal('${item.itemType}', ${item.id})">✏️ Editar</button>
-                            <button class="btn-danger" onclick="deleteItem('${item.itemType}', ${item.id})">Eliminar</button>
+                            <button class="btn-danger" onclick="deleteReceta(${item.id})">Eliminar</button>
                         </div>
                     </div>
                 `;
@@ -1127,132 +1075,10 @@
             renderRecetasList(e.target.value);
         });
 
-        function deleteItem(type, id) {
-            if (type === 'receta') {
-                recetas = recetas.filter(r => r.id !== id);
-                deleteFromFirebase('recetas', id);
-            } else {
-                subrecetas = subrecetas.filter(s => s.id !== id);
-                deleteFromFirebase('subrecetas', id);
-            }
+        function deleteReceta(id) {
+            recetas = recetas.filter(r => r.id !== id);
+            deleteFromFirebase('recetas', id);
             renderAll();
-        }
-
-        function openEditModal(type, id) {
-            editingType = type;
-            editingId = id;
-            
-            const modal = document.getElementById('editModal');
-            const title = document.getElementById('editModalTitle');
-            const body = document.getElementById('editModalBody');
-
-            let item, content;
-
-            if (type === 'receta') {
-                item = recetas.find(r => r.id === id);
-                title.textContent = `Editar Receta: ${item.nombre}`;
-                
-                const ingredientesHTML = item.ingredientes.map((ing, idx) => {
-                    let nombre = '';
-                    if (ing.id.startsWith('SUB_')) {
-                        const sub = subrecetas.find(s => s.id == parseInt(ing.id.replace('SUB_', '')));
-                        nombre = sub?.nombre || 'Sub-receta';
-                    } else {
-                        const prod = inventario.find(p => p.id == ing.id);
-                        nombre = prod?.nombre || 'Producto';
-                    }
-                    
-                    return `
-                        <div class="ingredient-item" style="border: 1px solid var(--border-color); padding: 1rem; border-radius: 8px; margin-bottom: 0.5rem;">
-                            <strong>${nombre}</strong>
-                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; margin-top: 0.5rem;">
-                                <input type="number" value="${ing.cantidad}" step="0.01" onchange="updateIngredient(${idx}, 'cantidad', this.value)" placeholder="Cantidad">
-                                <select onchange="updateIngredient(${idx}, 'unidad', this.value)">
-                                    <option value="${ing.unidad}" selected>${ing.unidad}</option>
-                                </select>
-                            </div>
-                        </div>
-                    `;
-                }).join('');
-
-                content = `
-                    <h3>Ingredientes</h3>
-                    ${ingredientesHTML}
-                    <div style="margin-top: 1rem; padding: 1rem; background: var(--accent-light); border-radius: 8px;">
-                        <strong>Costo total: $${calculateRecetaCost(item).toLocaleString('es-ES', {maximumFractionDigits: 2})}</strong>
-                    </div>
-                    <div class="button-group" style="margin-top: 1rem;">
-                        <button class="btn-primary" onclick="closeModal()">Guardar cambios</button>
-                    </div>
-                `;
-            } else {
-                item = subrecetas.find(s => s.id === id);
-                title.textContent = `Editar Sub-receta: ${item.nombre}`;
-                
-                const ingredientesHTML = item.ingredientes.map((ing, idx) => {
-                    const prod = inventario.find(p => p.id == ing.productId);
-                    const nombre = prod?.nombre || 'Producto';
-                    
-                    return `
-                        <div class="ingredient-item" style="border: 1px solid var(--border-color); padding: 1rem; border-radius: 8px; margin-bottom: 0.5rem;">
-                            <strong>${nombre}</strong>
-                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; margin-top: 0.5rem;">
-                                <input type="number" value="${ing.cantidad}" step="0.01" onchange="updateSubIngredient(${idx}, 'cantidad', this.value)" placeholder="Cantidad">
-                                <select onchange="updateSubIngredient(${idx}, 'unidad', this.value)">
-                                    <option value="${ing.unidad}" selected>${ing.unidad}</option>
-                                </select>
-                            </div>
-                        </div>
-                    `;
-                }).join('');
-
-                content = `
-                    <h3>Ingredientes</h3>
-                    ${ingredientesHTML}
-                    <div style="margin-top: 1rem; padding: 1rem; background: var(--accent-light); border-radius: 8px;">
-                        <strong>Costo total: $${calculateSubrecetaCost(item).toLocaleString('es-ES', {maximumFractionDigits: 2})}</strong>
-                    </div>
-                    <div class="button-group" style="margin-top: 1rem;">
-                        <button class="btn-primary" onclick="closeModal()">Guardar cambios</button>
-                    </div>
-                `;
-            }
-
-            body.innerHTML = content;
-            modal.classList.add('active');
-        }
-
-        function updateIngredient(idx, field, value) {
-            const item = recetas.find(r => r.id === editingId);
-            if (field === 'cantidad') {
-                item.ingredientes[idx].cantidad = parseFloat(value);
-            } else if (field === 'unidad') {
-                item.ingredientes[idx].unidad = value;
-            }
-        }
-
-        function updateSubIngredient(idx, field, value) {
-            const item = subrecetas.find(s => s.id === editingId);
-            if (field === 'cantidad') {
-                item.ingredientes[idx].cantidad = parseFloat(value);
-            } else if (field === 'unidad') {
-                item.ingredientes[idx].unidad = value;
-            }
-        }
-
-        function closeModal() {
-            const modal = document.getElementById('editModal');
-            modal.classList.remove('active');
-            
-            if (editingType === 'receta') {
-                const item = recetas.find(r => r.id === editingId);
-                saveToFirebase('recetas', item);
-            } else {
-                const item = subrecetas.find(s => s.id === editingId);
-                saveToFirebase('subrecetas', item);
-            }
-            
-            renderRecetasList(document.getElementById('searchRecetas')?.value || '');
         }
 
         // ==================== UTILITY FUNCTIONS ====================
@@ -1271,13 +1097,25 @@
 
         function renderAll() {
             renderInventario();
-            renderEditarInventario();
             updateSelectOptions();
             renderRecetasList(document.getElementById('searchRecetas')?.value || '');
         }
 
-        // ==================== INITIAL RENDER ====================
+        // ==================== INIT ====================
         loadDataFromFirebase();
+
+        // Recargar cada 30 segundos para sincronizar precios
+        setInterval(loadDataFromFirebase, 30000);
+
+        loadDataFromFirebase();
+        }
+
+        // Iniciar cuando el DOM esté listo
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', initFirebase);
+        } else {
+            initFirebase();
+        }
     </script>
 </body>
 </html>
