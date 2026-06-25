@@ -584,6 +584,8 @@
         // ==================== CARGAR DATOS ====================
         async function loadDataFromFirebase() {
             try {
+                console.log('🔄 [MAIN] Iniciando carga de datos...');
+                
                 // Cargar recetas y sub-recetas del proyecto RecetaCosto
                 const subSnapshot = await window.dbReceta.collection('users').doc(userId).collection('subrecetas').get();
                 subrecetas = subSnapshot.docs.map(doc => ({...doc.data(), id: parseInt(doc.id)})).sort((a, b) => a.nombre.localeCompare(b.nombre));
@@ -595,50 +597,88 @@
                 await loadProductosFromCompras();
 
                 renderAll();
+                console.log('✅ [MAIN] Datos cargados completamente');
             } catch (error) {
-                console.error('Error cargando datos:', error);
+                console.error('❌ [MAIN] Error cargando datos:', error);
             }
         }
 
         async function loadProductosFromCompras() {
             try {
+                console.log('🔄 [INICIO] Cargando productos desde Compras...');
+                console.log('Firebase Compras inicializado:', !!window.dbCompras);
+                
+                if (!window.dbCompras) {
+                    console.error('❌ dbCompras no está inicializado');
+                    return;
+                }
+
+                console.log('📚 Buscando colección facturas...');
                 const facturasSnapshot = await window.dbCompras.collection('facturas').get();
+                console.log('✅ Facturas encontradas:', facturasSnapshot.size);
+
+                if (facturasSnapshot.empty) {
+                    console.warn('⚠️ No hay facturas en la base de datos');
+                    renderInventario();
+                    return;
+                }
+
                 const productosMap = {};
+                let totalItems = 0;
 
                 // Recorrer todas las facturas
-                for (const facturaDoc of facturasSnapshot.docs) {
+                const facturasList = facturasSnapshot.docs;
+                console.log('📋 Procesando', facturasList.length, 'facturas...');
+
+                for (let i = 0; i < facturasList.length; i++) {
+                    const facturaDoc = facturasList[i];
                     const facturaData = facturaDoc.data();
                     const fecha = new Date(facturaData.fecha);
+                    
+                    console.log(`  [${i + 1}/${facturasList.length}] Factura:`, facturaDoc.id, 'Fecha:', facturaData.fecha);
 
-                    // Leer subcollection items
-                    const itemsSnapshot = await facturaDoc.ref.collection('items').get();
+                    try {
+                        // Leer subcollection items
+                        const itemsSnapshot = await facturaDoc.ref.collection('items').get();
+                        console.log(`    └─ Items encontrados:`, itemsSnapshot.size);
+                        totalItems += itemsSnapshot.size;
 
-                    itemsSnapshot.forEach((itemDoc) => {
-                        const item = itemDoc.data();
+                        itemsSnapshot.forEach((itemDoc) => {
+                            const item = itemDoc.data();
+                            
+                            if (item.clasificacion && CLASIFICACIONES_ALIMENTOS.some(c => item.clasificacion.includes(c))) {
+                                const clave = item.producto.toUpperCase();
+                                console.log(`      ✅ ${item.producto} [${item.clasificacion}] $${item.costoNeto}`);
 
-                        // Filtrar solo alimentos
-                        if (item.clasificacion && CLASIFICACIONES_ALIMENTOS.some(c => item.clasificacion.includes(c))) {
-                            const clave = item.producto.toUpperCase();
-
-                            // Si no existe o esta es más reciente, guardar
-                            if (!productosMap[clave] || fecha > productosMap[clave].fecha) {
-                                productosMap[clave] = {
-                                    nombre: item.producto,
-                                    precio: item.costoNeto || item.total,
-                                    unidad: item.unidad || 'unidad',
-                                    clasificacion: item.clasificacion,
-                                    fecha: fecha,
-                                    id: `compras_${clave}`
-                                };
+                                // Si no existe o esta es más reciente, guardar
+                                if (!productosMap[clave] || fecha > productosMap[clave].fecha) {
+                                    productosMap[clave] = {
+                                        nombre: item.producto,
+                                        precio: item.costoNeto || item.total || 0,
+                                        unidad: item.unidad || 'unidad',
+                                        clasificacion: item.clasificacion,
+                                        fecha: fecha,
+                                        id: `compras_${clave}`
+                                    };
+                                }
                             }
-                        }
-                    });
+                        });
+                    } catch (itemError) {
+                        console.error(`    ❌ Error leyendo items de ${facturaDoc.id}:`, itemError);
+                    }
                 }
 
                 // Convertir a array
                 inventario = Object.values(productosMap).sort((a, b) => a.nombre.localeCompare(b.nombre));
+                console.log('✅ [FIN] Total de productos cargados:', inventario.length);
+                console.log('📊 Items procesados:', totalItems);
+                inventario.forEach(p => console.log(`   - ${p.nombre}: $${p.precio} ${p.unidad}`));
+                
+                renderInventario();
             } catch (error) {
-                console.error('Error cargando productos de Compras:', error);
+                console.error('❌ Error cargando productos:', error);
+                console.error('Mensaje:', error.message);
+                console.error('Código:', error.code);
             }
         }
 
