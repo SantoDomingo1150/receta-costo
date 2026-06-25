@@ -388,6 +388,7 @@
             <div class="form-section">
                 <h2>Inventario (Sincronizado desde Compras)</h2>
                 <p style="color: var(--text-secondary); margin-bottom: 1rem;">Los productos se actualizan automáticamente con el último precio de compra.</p>
+                <button class="btn-primary" onclick="forceRefresh()" style="margin-bottom: 1rem;">🔄 Actualizar precios desde Compras</button>
                 <div id="invList"></div>
             </div>
         </div>
@@ -606,79 +607,97 @@
         async function loadProductosFromCompras() {
             try {
                 console.log('🔄 [INICIO] Cargando productos desde Compras...');
-                console.log('Firebase Compras inicializado:', !!window.dbCompras);
                 
                 if (!window.dbCompras) {
                     console.error('❌ dbCompras no está inicializado');
                     return;
                 }
 
-                console.log('📚 Buscando colección facturas...');
+                // Verificar caché
+                const cache = localStorage.getItem('inventarioCache');
+                const cacheTime = localStorage.getItem('inventarioCacheTime');
+                const CACHE_DURATION = 1000 * 60 * 60; // 1 hora
+
+                if (cache && cacheTime && (Date.now() - parseInt(cacheTime)) < CACHE_DURATION) {
+                    // Usar caché
+                    inventario = JSON.parse(cache);
+                    console.log('⚡ Cargado desde caché:', inventario.length, 'productos');
+                    renderAll();
+                    return;
+                }
+
+                console.log('🔄 Caché expirado o vacío. Descargando desde Compras...');
+
                 const facturasSnapshot = await window.dbCompras.collection('facturas').get();
                 console.log('✅ Facturas encontradas:', facturasSnapshot.size);
 
                 if (facturasSnapshot.empty) {
-                    console.warn('⚠️ No hay facturas en la base de datos');
-                    renderInventario();
+                    console.warn('⚠️ No hay facturas');
                     return;
                 }
 
                 const productosMap = {};
-                let totalItems = 0;
-
-                // Recorrer todas las facturas
                 const facturasList = facturasSnapshot.docs;
-                console.log('📋 Procesando', facturasList.length, 'facturas...');
+                const total = facturasList.length;
 
-                for (let i = 0; i < facturasList.length; i++) {
-                    const facturaDoc = facturasList[i];
-                    const facturaData = facturaDoc.data();
-                    const fecha = new Date(facturaData.fecha);
+                // Mostrar progreso en la pantalla
+                const list = document.getElementById('invList');
+                list.innerHTML = `<div class="empty-state">⏳ Cargando productos... 0/${total} facturas procesadas</div>`;
+
+                // Procesar en lotes de 20 para no bloquear la UI
+                const BATCH_SIZE = 20;
+                
+                for (let i = 0; i < total; i += BATCH_SIZE) {
+                    const batch = facturasList.slice(i, i + BATCH_SIZE);
                     
-                    console.log(`  [${i + 1}/${facturasList.length}] Factura:`, facturaDoc.id, 'Fecha:', facturaData.fecha);
+                    await Promise.all(batch.map(async (facturaDoc) => {
+                        const facturaData = facturaDoc.data();
+                        const fecha = new Date(facturaData.fecha);
 
-                    try {
-                        // Leer subcollection items
-                        const itemsSnapshot = await facturaDoc.ref.collection('items').get();
-                        console.log(`    └─ Items encontrados:`, itemsSnapshot.size);
-                        totalItems += itemsSnapshot.size;
+                        try {
+                            const itemsSnapshot = await facturaDoc.ref.collection('items').get();
 
-                        itemsSnapshot.forEach((itemDoc) => {
-                            const item = itemDoc.data();
-                            
-                            if (item.clasificacion && CLASIFICACIONES_ALIMENTOS.some(c => item.clasificacion.includes(c))) {
-                                const clave = item.producto.toUpperCase();
-                                console.log(`      ✅ ${item.producto} [${item.clasificacion}] $${item.costoNeto}`);
+                            itemsSnapshot.forEach((itemDoc) => {
+                                const item = itemDoc.data();
 
-                                // Si no existe o esta es más reciente, guardar
-                                if (!productosMap[clave] || fecha > productosMap[clave].fecha) {
-                                    productosMap[clave] = {
-                                        nombre: item.producto,
-                                        precio: item.costoNeto || item.total || 0,
-                                        unidad: item.unidad || 'unidad',
-                                        clasificacion: item.clasificacion,
-                                        fecha: fecha,
-                                        id: `compras_${clave}`
-                                    };
+                                if (item.clasificacion && CLASIFICACIONES_ALIMENTOS.some(c => item.clasificacion.includes(c))) {
+                                    const clave = item.producto.toUpperCase();
+
+                                    if (!productosMap[clave] || fecha > productosMap[clave].fecha) {
+                                        productosMap[clave] = {
+                                            nombre: item.producto,
+                                            precio: item.costoNeto || item.total || 0,
+                                            unidad: item.unidad || 'unidad',
+                                            clasificacion: item.clasificacion,
+                                            fecha: fecha,
+                                            id: `compras_${clave}`
+                                        };
+                                    }
                                 }
-                            }
-                        });
-                    } catch (itemError) {
-                        console.error(`    ❌ Error leyendo items de ${facturaDoc.id}:`, itemError);
-                    }
+                            });
+                        } catch (e) {
+                            console.error('Error en factura:', facturaDoc.id, e);
+                        }
+                    }));
+
+                    const processed = Math.min(i + BATCH_SIZE, total);
+                    const found = Object.keys(productosMap).length;
+                    list.innerHTML = `<div class="empty-state">⏳ Cargando... ${processed}/${total} facturas | ${found} productos encontrados</div>`;
                 }
 
                 // Convertir a array
                 inventario = Object.values(productosMap).sort((a, b) => a.nombre.localeCompare(b.nombre));
-                console.log('✅ [FIN] Total de productos cargados:', inventario.length);
-                console.log('📊 Items procesados:', totalItems);
-                inventario.forEach(p => console.log(`   - ${p.nombre}: $${p.precio} ${p.unidad}`));
                 
-                renderInventario();
+                // Guardar en caché
+                localStorage.setItem('inventarioCache', JSON.stringify(inventario));
+                localStorage.setItem('inventarioCacheTime', Date.now().toString());
+                
+                console.log('✅ [FIN] Total productos:', inventario.length, '(guardado en caché)');
+                
+                renderAll();
             } catch (error) {
-                console.error('❌ Error cargando productos:', error);
-                console.error('Mensaje:', error.message);
-                console.error('Código:', error.code);
+                console.error('❌ Error:', error.message, error.code);
+                document.getElementById('invList').innerHTML = `<div class="empty-state">❌ Error: ${error.message}</div>`;
             }
         }
 
@@ -1147,8 +1166,17 @@
         // ==================== INIT ====================
         loadDataFromFirebase();
 
-        // Recargar cada 30 segundos para sincronizar precios
-        setInterval(loadDataFromFirebase, 30000);
+        // Forzar actualización manual
+        window.forceRefresh = function() {
+            localStorage.removeItem('inventarioCache');
+            localStorage.removeItem('inventarioCacheTime');
+            loadDataFromFirebase();
+        }
+
+        // Hacer funciones globales para onclick handlers
+        window.updateSubCost = updateSubCost;
+        window.updateRecCost = updateRecCost;
+        window.deleteReceta = deleteReceta;
 
         loadDataFromFirebase();
         }
