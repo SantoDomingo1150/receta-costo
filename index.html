@@ -700,7 +700,14 @@
 
                 console.log('🔄 Caché expirado o vacío. Descargando desde Compras...');
 
-                const facturasSnapshot = await window.dbCompras.collection('facturas').get();
+                const hace30dias = new Date();
+                hace30dias.setDate(hace30dias.getDate() - 30);
+                const fecha30 = hace30dias.toISOString().split('T')[0]; // "2026-05-27"
+
+                const facturasSnapshot = await window.dbCompras.collection('facturas')
+                    .orderBy('fecha', 'desc')
+                    .where('fecha', '>=', fecha30)
+                    .get();
                 console.log('✅ Facturas encontradas:', facturasSnapshot.size);
 
                 if (facturasSnapshot.empty) {
@@ -709,6 +716,8 @@
                 }
 
                 const productosMap = {};
+                // Facturas ya vienen ordenadas de más reciente a más antigua
+                // La primera vez que aparece un producto = precio más reciente
                 const facturasList = facturasSnapshot.docs;
                 const total = facturasList.length;
 
@@ -731,7 +740,6 @@
                                 const item = itemDoc.data();
 
                                 if (item.clasificacion && CLASIFICACIONES_ALIMENTOS.some(c => item.clasificacion.includes(c))) {
-                                    // Parsear producto (desempaquetar cajas)
                                     const parsed = parseProducto(
                                         item.producto, 
                                         item.costoNeto || item.total || 0, 
@@ -739,17 +747,15 @@
                                         item.cantidad || 1
                                     );
 
-                                    // Clave normalizada para deduplicar
                                     const clave = normalizarClave(item.producto);
 
-                                    // Solo guardar si es más reciente
-                                    if (!productosMap[clave] || fecha > productosMap[clave].fecha) {
+                                    // Primera vez que aparece = más reciente (facturas ordenadas desc)
+                                    if (!productosMap[clave]) {
                                         productosMap[clave] = {
                                             nombre: parsed.nombreLimpio || item.producto,
                                             precio: parsed.precio,
                                             unidad: parsed.unidad,
                                             clasificacion: item.clasificacion,
-                                            fecha: fecha,
                                             id: `compras_${clave.replace(/[^A-Z0-9]/g, '_')}`
                                         };
                                     }
