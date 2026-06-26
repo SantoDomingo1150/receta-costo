@@ -600,50 +600,70 @@
         function parseProducto(nombre, costoNeto, unidadOriginal) {
             const nombreUp = nombre.toUpperCase();
 
-            // Detectar multiplicador XNN (X48, X24, X6, etc.)
-            const multMatch = nombreUp.match(/\bX\s*(\d+)\b/);
-            const multiplier = multMatch ? parseInt(multMatch[1]) : 1;
+            // CASO 1: Formato "NX PESO" o "N X PESO" → ej: "4X 500ML", "4 X 500ML", "6X 2L"
+            const caso1 = nombreUp.match(/(\d+)\s*[Xx]\s*(\d+(?:[.,]\d+)?)\s*(G|GR|KG|ML|L|LT|CC)\b/);
+            
+            // CASO 2: Formato "PESO XN" o "PESO X N" → ej: "500ML X6", "2L X12", "184G X48"
+            const caso2 = nombreUp.match(/(\d+(?:[.,]\d+)?)\s*(G|GR|KG|ML|L|LT|CC)\s*[Xx]\s*(\d+)\b/);
 
-            // Detectar peso/volumen por unidad (184G, 250ML, 2L, 1KG, 500CC, etc.)
-            const weightMatch = nombreUp.match(/(\d+(?:[.,]\d+)?)\s*(G|GR|KG|ML|L|LT|CC)\b/);
+            // CASO 3: Solo multiplicador XN sin peso → ej: "HUEVOS X30"
+            const caso3 = nombreUp.match(/\bX\s*(\d+)\b/);
 
+            // CASO 4: Solo peso sin multiplicador → ej: "ACEITE 5L", "CARNE 1KG"
+            const caso4 = nombreUp.match(/(\d+(?:[.,]\d+)?)\s*(G|GR|KG|ML|L|LT|CC)\b/);
+
+            let multiplier = 1;
+            let pesoValor = null;
+            let pesoUnidad = null;
             let precioFinal = costoNeto;
             let unidadFinal = unidadOriginal || 'u';
 
-            if (weightMatch) {
-                const cantidad = parseFloat(weightMatch[1].replace(',', '.'));
-                const unidadPeso = weightMatch[2];
+            if (caso1) {
+                // "4X 500ML" → 4 unidades × 500ml
+                multiplier = parseInt(caso1[1]);
+                pesoValor = parseFloat(caso1[2].replace(',', '.'));
+                pesoUnidad = caso1[3];
+            } else if (caso2) {
+                // "500ML X6" → 6 unidades × 500ml
+                pesoValor = parseFloat(caso2[1].replace(',', '.'));
+                pesoUnidad = caso2[2];
+                multiplier = parseInt(caso2[3]);
+            } else if (caso3) {
+                // Solo "X30" → 30 unidades
+                multiplier = parseInt(caso3[1]);
+            } else if (caso4) {
+                // Solo peso → "5L", "1KG"
+                pesoValor = parseFloat(caso4[1].replace(',', '.'));
+                pesoUnidad = caso4[2];
+            }
 
-                // Convertir a unidad BASE (g o ml)
-                let cantidadBase;
-                if (unidadPeso === 'KG')       cantidadBase = cantidad * 1000; // g
-                else if (unidadPeso === 'L' || unidadPeso === 'LT') cantidadBase = cantidad * 1000; // ml
-                else                            cantidadBase = cantidad; // G, GR, ML, CC → ya en base
+            // Calcular precio final
+            if (pesoValor && pesoUnidad) {
+                const pu = pesoUnidad.toUpperCase();
+                
+                // Convertir a base (g o ml)
+                let baseValor;
+                if (pu === 'KG')              baseValor = pesoValor * 1000; // → g
+                else if (pu === 'L' || pu === 'LT') baseValor = pesoValor * 1000; // → ml
+                else                          baseValor = pesoValor; // G, GR, ML, CC
 
-                // Total base considerando multiplicador
-                const totalBase = cantidadBase * multiplier;
+                const totalBase = baseValor * multiplier;
+                const esPeso = ['G', 'GR', 'KG'].includes(pu);
 
-                // Determinar si es peso o volumen
-                const esPeso = ['G', 'GR', 'KG'].includes(unidadPeso);
-
-                if (esPeso) {
-                    // Precio por KG = costoNeto ÷ (totalBase gramos ÷ 1000)
-                    precioFinal = costoNeto / (totalBase / 1000);
-                    unidadFinal = 'kg';
-                } else {
-                    // Precio por L = costoNeto ÷ (totalBase ml ÷ 1000)
-                    precioFinal = costoNeto / (totalBase / 1000);
-                    unidadFinal = 'L';
-                }
+                // Precio por KG o por L
+                precioFinal = costoNeto / (totalBase / 1000);
+                unidadFinal = esPeso ? 'kg' : 'L';
 
             } else if (multiplier > 1) {
-                // Solo XNN sin peso → precio por unidad
+                // Solo multiplicador → precio por unidad
                 precioFinal = costoNeto / multiplier;
                 unidadFinal = 'u';
             }
 
-            // Nombre limpio: quitar XNN
+            // Nombre limpio: quitar NX, XN y variantes
             const nombreLimpio = nombre
+                .replace(/\d+\s*[Xx]\s*\d+(?:[.,]\d+)?\s*(G|GR|KG|ML|L|LT|CC)\b/gi, '')
+                .replace(/\d+(?:[.,]\d+)?\s*(G|GR|KG|ML|L|LT|CC)\s*[Xx]\s*\d+/gi, '')
                 .replace(/\s*[Xx]\s*\d+/g, '')
                 .replace(/\s+/g, ' ')
                 .trim();
