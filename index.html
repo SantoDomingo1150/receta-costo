@@ -583,70 +583,67 @@
         ];
 
         // ==================== PARSER DE PRODUCTOS ====================
-        function parseProducto(nombre, costoNeto, unidad, cantidad) {
-            // Detectar multiplicador: X48, X24, X12, x6, etc.
-            const multMatch = nombre.match(/\bX\s*(\d+)\b/i);
+        
+        // Normalizar nombre para deduplicación
+        function normalizarClave(nombre) {
+            return nombre
+                .toUpperCase()
+                .replace(/\s*[Xx]\s*\d+/g, '')
+                .replace(/(\d+(?:[.,]\d+)?)\s*(G|GR|KG|ML|L|LT|CC)\b/gi, '')
+                .replace(/\b(CJ|CJA|CAJA|PT|UNI|UNID|PACK|BOLSA|BANDEJA)\b/gi, '')
+                .replace(/\(\s*[^)]*\)/g, '')
+                .replace(/[^A-Z\s]/g, '')
+                .replace(/\s+/g, ' ')
+                .trim();
+        }
+
+        function parseProducto(nombre, costoNeto, unidadOriginal) {
+            const nombreUp = nombre.toUpperCase();
+
+            // Detectar multiplicador XNN (X48, X24, X6, etc.)
+            const multMatch = nombreUp.match(/\bX\s*(\d+)\b/);
             const multiplier = multMatch ? parseInt(multMatch[1]) : 1;
 
-            // Detectar peso/volumen por unidad: 184G, 500G, 1KG, 250ML, 1L, 500CC, etc.
-            const weightMatch = nombre.match(/(\d+(?:[.,]\d+)?)\s*(G|GR|KG|ML|L|LT|CC)\b/i);
+            // Detectar peso/volumen por unidad (184G, 250ML, 2L, 1KG, 500CC, etc.)
+            const weightMatch = nombreUp.match(/(\d+(?:[.,]\d+)?)\s*(G|GR|KG|ML|L|LT|CC)\b/);
 
             let precioFinal = costoNeto;
-            let unidadFinal = unidad;
-            let nombreLimpio = nombre;
+            let unidadFinal = unidadOriginal || 'u';
 
-            if (multiplier > 1 && weightMatch) {
-                // Tiene multiplicador Y peso: ej "ATUN 184G X48"
-                const peso = parseFloat(weightMatch[1].replace(',', '.'));
-                const pesoUnidad = weightMatch[2].toUpperCase();
+            if (weightMatch) {
+                const cantidad = parseFloat(weightMatch[1].replace(',', '.'));
+                const unidadPeso = weightMatch[2];
 
-                // Convertir peso a gramos o ml
-                let pesoEnBase; // en gramos o ml
-                if (pesoUnidad === 'KG') pesoEnBase = peso * 1000;
-                else if (pesoUnidad === 'L' || pesoUnidad === 'LT') pesoEnBase = peso * 1000;
-                else pesoEnBase = peso; // G, GR, ML, CC
+                // Convertir a unidad BASE (g o ml)
+                let cantidadBase;
+                if (unidadPeso === 'KG')       cantidadBase = cantidad * 1000; // g
+                else if (unidadPeso === 'L' || unidadPeso === 'LT') cantidadBase = cantidad * 1000; // ml
+                else                            cantidadBase = cantidad; // G, GR, ML, CC → ya en base
 
-                // Peso/volumen total de la caja
-                const totalBase = pesoEnBase * multiplier;
+                // Total base considerando multiplicador
+                const totalBase = cantidadBase * multiplier;
 
-                // Calcular precio por kg o L
-                if (['G', 'GR', 'KG'].includes(pesoUnidad)) {
-                    precioFinal = costoNeto / (totalBase / 1000); // precio por kg
+                // Determinar si es peso o volumen
+                const esPeso = ['G', 'GR', 'KG'].includes(unidadPeso);
+
+                if (esPeso) {
+                    // Precio por KG = costoNeto ÷ (totalBase gramos ÷ 1000)
+                    precioFinal = costoNeto / (totalBase / 1000);
                     unidadFinal = 'kg';
                 } else {
-                    precioFinal = costoNeto / (totalBase / 1000); // precio por L
+                    // Precio por L = costoNeto ÷ (totalBase ml ÷ 1000)
+                    precioFinal = costoNeto / (totalBase / 1000);
                     unidadFinal = 'L';
                 }
 
-                console.log(`    📦 Desempaquetado: ${nombre} → ${multiplier} unidades x ${peso}${pesoUnidad} = ${totalBase}${['G','GR','KG'].includes(pesoUnidad)?'g':'ml'} → $${Math.round(precioFinal)}/${unidadFinal}`);
-
             } else if (multiplier > 1) {
-                // Solo multiplicador sin peso: ej "HUEVOS X30"
+                // Solo XNN sin peso → precio por unidad
                 precioFinal = costoNeto / multiplier;
                 unidadFinal = 'u';
-                console.log(`    📦 Desempaquetado: ${nombre} → ${multiplier} unidades → $${Math.round(precioFinal)}/u`);
-
-            } else if (unidad === 'caja' || unidad === 'CAJA') {
-                // Es caja pero no dice cuántas unidades
-                // Si tiene peso, calcular por kg/L
-                if (weightMatch) {
-                    const peso = parseFloat(weightMatch[1].replace(',', '.'));
-                    const pesoUnidad = weightMatch[2].toUpperCase();
-
-                    if (['G', 'GR', 'KG'].includes(pesoUnidad)) {
-                        let pesoKg = pesoUnidad === 'KG' ? peso : peso / 1000;
-                        precioFinal = costoNeto / pesoKg;
-                        unidadFinal = 'kg';
-                    } else {
-                        let volL = (pesoUnidad === 'L' || pesoUnidad === 'LT') ? peso : peso / 1000;
-                        precioFinal = costoNeto / volL;
-                        unidadFinal = 'L';
-                    }
-                }
             }
 
-            // Limpiar nombre: quitar el XNN y peso para mejor lectura
-            nombreLimpio = nombre
+            // Nombre limpio: quitar XNN
+            const nombreLimpio = nombre
                 .replace(/\s*[Xx]\s*\d+/g, '')
                 .replace(/\s+/g, ' ')
                 .trim();
@@ -654,7 +651,7 @@
             return {
                 precio: Math.round(precioFinal),
                 unidad: unidadFinal,
-                nombreLimpio: nombreLimpio
+                nombreLimpio
             };
         }
 
@@ -742,7 +739,8 @@
                                         item.cantidad || 1
                                     );
 
-                                    const clave = item.producto.toUpperCase().trim();
+                                    // Clave normalizada para deduplicar
+                                    const clave = normalizarClave(item.producto);
 
                                     // Solo guardar si es más reciente
                                     if (!productosMap[clave] || fecha > productosMap[clave].fecha) {
